@@ -123,7 +123,8 @@ def init_auth_db():
     except: pass
 
     # --- Checkout disclaimer ---
-    cursor.execute("INSERT OR IGNORE INTO global_settings (key, value) VALUES ('checkout_disclaimer', '')")
+    try: cursor.execute("INSERT OR IGNORE INTO global_settings (key, value) VALUES ('checkout_disclaimer', '')")
+    except: pass
 
     # Generate webhook keys for any existing users that don't have one
     cursor.execute("SELECT id FROM web_users WHERE webhook_key = '' OR webhook_key IS NULL")
@@ -1300,7 +1301,7 @@ async def api_update_system_config(req: Request, user: dict = Depends(get_curren
     valid_keys = ['registration_enabled', 'trial_days', 'upi_randomize', 'site_title', 'site_tagline', 'site_icon', 'smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_pass', 'bot_token', 'checkout_disclaimer']
     for key, val in data.items():
         if key in valid_keys:
-            conn.execute("UPDATE global_settings SET value=? WHERE key=?", (str(val), key))
+            conn.execute("INSERT OR REPLACE INTO global_settings (key, value) VALUES (?, ?)", (key, str(val)))
     conn.commit(); conn.close()
     return {"status": "success"}
 
