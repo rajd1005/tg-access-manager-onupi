@@ -7,93 +7,254 @@
     {% if seo.site_tagline %}<meta name="description" content="{{ seo.site_tagline }}">{% endif %}
     {% if seo.site_icon %}<link rel="icon" href="{{ seo.site_icon }}">{% endif %}
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%); }
+        .trial-glow { box-shadow: 0 0 30px rgba(167,139,250,0.4); }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans text-gray-800 h-[100dvh] flex items-center justify-center p-4">
+<body class="bg-gray-50 min-h-screen lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row">
 
-    <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm border border-gray-100 relative overflow-hidden">
-        
-        <div class="text-center mb-8 flex flex-col items-center justify-center">
-            {% if seo.site_icon %}<img src="{{ seo.site_icon }}" class="w-12 h-12 rounded-xl mb-3 shadow-sm border border-gray-200">{% endif %}
-            <h1 class="text-2xl font-extrabold text-blue-600 tracking-tight">{% if seo.site_title %}{{ seo.site_title }}{% else %}🚀 TG Manager{% endif %}</h1>
-            <p class="text-sm text-gray-500 font-bold mt-1">{% if seo.site_tagline %}{{ seo.site_tagline }}{% else %}Admin & Agent Portal{% endif %}</p>
+    <!-- LEFT PANEL: Feature showcase (desktop only) -->
+    <div class="gradient-bg hidden lg:flex lg:w-1/2 xl:w-[55%] flex-col justify-between p-10 xl:p-14 relative overflow-hidden">
+        <!-- Background decoration -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/5"></div>
+            <div class="absolute top-1/2 -left-16 w-60 h-60 rounded-full bg-white/5"></div>
+            <div class="absolute -bottom-10 right-1/4 w-48 h-48 rounded-full bg-white/5"></div>
         </div>
 
-        <div id="view-login" class="space-y-5">
-            <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Email Address</label>
-                <input type="email" id="login-email" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 font-semibold transition" placeholder="name@domain.com">
+        <!-- Logo + Brand -->
+        <div class="relative z-10">
+            <div class="flex items-center gap-3 mb-2">
+                {% if seo.site_icon %}
+                <img src="{{ seo.site_icon }}" class="w-10 h-10 rounded-xl border-2 border-white/30 shadow-lg">
+                {% else %}
+                <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🚀</div>
+                {% endif %}
+                <span class="text-white font-black text-xl tracking-tight">{% if seo.site_title %}{{ seo.site_title }}{% else %}TG Manager{% endif %}</span>
             </div>
-            <div>
-                <div class="flex justify-between items-end mb-1">
-                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wide">Password</label>
-                    <button onclick="switchView('forgot')" class="text-[10px] font-bold text-blue-500 hover:underline">Forgot?</button>
-                </div>
-                <div class="relative">
-                    <input type="password" id="login-pass" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 font-semibold pr-16 transition" placeholder="••••••••">
-                    <button type="button" onclick="togglePassword('login-pass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-500 hover:text-gray-800 transition">👁️ Show</button>
-                </div>
-            </div>
-            
-            <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all active:scale-95 text-sm uppercase tracking-wide mt-2">Login to Dashboard</button>
-            
-            <div class="text-center pt-4 border-t border-gray-100">
-                <p class="text-xs text-gray-500 font-medium">New around here?</p>
-                <button onclick="switchView('register')" class="text-sm font-bold text-blue-600 hover:underline mt-1">Create an Account</button>
-            </div>
+            <p class="text-white/70 text-sm font-medium ml-1">{% if seo.site_tagline %}{{ seo.site_tagline }}{% else %}Telegram Access & Subscription Platform{% endif %}</p>
         </div>
 
-        <div id="view-forgot" class="space-y-5 hidden">
-            <h2 class="font-bold text-gray-800 text-lg border-b pb-2">Reset Password</h2>
-            <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">Registered Email</label>
-                <input type="email" id="forgot-email" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 font-semibold">
+        <!-- Main headline -->
+        <div class="relative z-10 my-8">
+            <div class="inline-flex items-center gap-2 bg-white/15 border border-white/25 text-white text-xs font-black px-4 py-2 rounded-full mb-6 backdrop-blur-sm">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                7-DAY FREE TRIAL — NO CREDIT CARD NEEDED
             </div>
-            <button onclick="sendForgotOtp()" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-3 rounded-xl shadow transition text-sm">Send Reset OTP</button>
-            <button onclick="switchView('login')" class="w-full text-xs font-bold text-gray-500 hover:text-gray-800 mt-2">« Back to Login</button>
+            <h1 class="text-4xl xl:text-5xl font-black text-white leading-tight tracking-tight mb-4">
+                Automate Your<br>
+                <span class="text-yellow-300">Telegram Community</span><br>
+                Access & Revenue
+            </h1>
+            <p class="text-white/75 text-base font-medium leading-relaxed max-w-md">
+                Sell subscriptions, manage members, and collect UPI payments — fully automated. Start your free trial today.
+            </p>
         </div>
 
-        <div id="view-reset" class="space-y-4 hidden">
-            <h2 class="font-bold text-gray-800 text-lg border-b pb-2">Create New Password</h2>
-            <div><input type="number" id="reset-otp" class="w-full p-3 bg-gray-50 border rounded-xl text-sm font-mono tracking-widest text-center focus:outline-blue-500 font-bold" placeholder="6-Digit OTP"></div>
-            <div>
-                <div class="relative">
-                    <input type="password" id="reset-pass" class="w-full p-3 bg-gray-50 border rounded-xl text-sm focus:outline-blue-500 font-semibold" placeholder="New Password">
-                    <button type="button" onclick="togglePassword('reset-pass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-500">👁️ Show</button>
+        <!-- Feature list -->
+        <div class="relative z-10 space-y-3 mb-8">
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0 mt-0.5 text-base">⚡</div>
+                <div>
+                    <p class="text-white font-bold text-sm">Instant UPI Payment Collection</p>
+                    <p class="text-white/60 text-xs font-medium mt-0.5">Auto-detect payments & grant Telegram access within seconds</p>
                 </div>
             </div>
-            <button onclick="resetPassword()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow transition text-sm">Confirm Password</button>
-        </div>
-
-        <div id="view-register" class="space-y-4 hidden">
-            <h2 class="font-bold text-gray-800 text-lg border-b pb-2">Agent Registration</h2>
-            <p class="text-xs text-gray-500 font-medium leading-relaxed">Enter your email to receive a secure sign-up verification code.</p>
-            <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1">Your Email</label>
-                <input type="email" id="register-email" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 font-semibold">
-            </div>
-            <button onclick="sendRegisterOtp()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow transition text-sm">Send OTP</button>
-            <button onclick="switchView('login')" class="w-full text-xs font-bold text-gray-500 hover:text-gray-800 mt-2">« Back to Login</button>
-        </div>
-
-        <div id="view-register-verify" class="space-y-4 hidden">
-            <h2 class="font-bold text-gray-800 text-lg border-b pb-2">Finalize Setup</h2>
-            <div><input type="number" id="register-otp" class="w-full p-3 bg-gray-50 border rounded-xl text-sm font-mono tracking-widest text-center focus:outline-blue-500 font-bold" placeholder="6-Digit OTP"></div>
-            <div>
-                <div class="relative">
-                    <input type="password" id="register-pass" class="w-full p-3 bg-gray-50 border rounded-xl text-sm focus:outline-blue-500 font-semibold" placeholder="Create Password">
-                    <button type="button" onclick="togglePassword('register-pass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-500">👁️ Show</button>
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0 mt-0.5 text-base">🤖</div>
+                <div>
+                    <p class="text-white font-bold text-sm">Smart Bot Automation</p>
+                    <p class="text-white/60 text-xs font-medium mt-0.5">Auto-add, auto-kick expired members — zero manual work</p>
                 </div>
             </div>
-            <div id="reg-plan-selection" class="hidden">
-                <label class="block text-xs font-bold text-gray-700 mb-1 mt-2">Select Subscription Plan</label>
-                <select id="register-plan" class="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:outline-blue-500"></select>
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0 mt-0.5 text-base">🛒</div>
+                <div>
+                    <p class="text-white font-bold text-sm">Beautiful Checkout Pages</p>
+                    <p class="text-white/60 text-xs font-medium mt-0.5">Mobile-optimised checkout with coupon codes & multi-tier pricing</p>
+                </div>
             </div>
-            <button onclick="verifyAndRegister()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow transition text-sm mt-2">Complete Registration</button>
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0 mt-0.5 text-base">👥</div>
+                <div>
+                    <p class="text-white font-bold text-sm">Agent / Reseller Network</p>
+                    <p class="text-white/60 text-xs font-medium mt-0.5">Give sub-agents their own dashboard to sell your plans</p>
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0 mt-0.5 text-base">📊</div>
+                <div>
+                    <p class="text-white font-bold text-sm">Analytics & Subscriber Reports</p>
+                    <p class="text-white/60 text-xs font-medium mt-0.5">Track revenue, active members, and expiring subscriptions</p>
+                </div>
+            </div>
         </div>
 
+        <!-- Trial CTA box -->
+        <div class="relative z-10 bg-white/10 border border-white/20 rounded-2xl p-5 backdrop-blur-sm trial-glow">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="text-2xl">🎁</div>
+                <div>
+                    <p class="text-white font-black text-base">Start Free — 7 Days on Us</p>
+                    <p class="text-white/70 text-xs font-medium">Full access to all features. No payment required to begin.</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-white/10 rounded-xl py-2">
+                    <p class="text-yellow-300 font-black text-lg">7</p>
+                    <p class="text-white/70 text-[10px] font-bold uppercase">Days Free</p>
+                </div>
+                <div class="bg-white/10 rounded-xl py-2">
+                    <p class="text-yellow-300 font-black text-lg">∞</p>
+                    <p class="text-white/70 text-[10px] font-bold uppercase">Members</p>
+                </div>
+                <div class="bg-white/10 rounded-xl py-2">
+                    <p class="text-yellow-300 font-black text-lg">0</p>
+                    <p class="text-white/70 text-[10px] font-bold uppercase">Setup Fee</p>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white font-bold text-sm px-5 py-3 rounded-full shadow-lg transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 whitespace-nowrap tracking-wide border border-gray-700"></div>
+    <!-- RIGHT PANEL: Auth forms -->
+    <div class="flex-1 flex flex-col justify-center items-center p-6 lg:p-10 min-h-screen lg:min-h-0 lg:overflow-y-auto bg-white lg:bg-gray-50">
+
+        <!-- Mobile brand header (only on mobile) -->
+        <div class="lg:hidden text-center mb-8 w-full">
+            <div class="flex items-center justify-center gap-2.5 mb-2">
+                {% if seo.site_icon %}
+                <img src="{{ seo.site_icon }}" class="w-9 h-9 rounded-xl border border-gray-200 shadow-sm">
+                {% endif %}
+                <span class="text-xl font-black text-gray-900 tracking-tight">{% if seo.site_title %}{{ seo.site_title }}{% else %}TG Manager{% endif %}</span>
+            </div>
+            <p class="text-sm text-gray-500 font-medium">{% if seo.site_tagline %}{{ seo.site_tagline }}{% else %}Admin & Agent Portal{% endif %}</p>
+            <!-- Mobile trial badge -->
+            <div class="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black px-4 py-2 rounded-full mt-3">
+                <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></span>
+                7-Day Free Trial Available
+            </div>
+        </div>
+
+        <div class="w-full max-w-sm">
+
+            <!-- Desktop: small brand label above form -->
+            <div class="hidden lg:block mb-6">
+                <h2 class="text-2xl font-black text-gray-900 tracking-tight">Welcome back</h2>
+                <p class="text-sm text-gray-500 font-medium mt-1">Sign in to your dashboard</p>
+            </div>
+
+            <div id="view-login" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Email Address</label>
+                    <input type="email" id="login-email" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 font-semibold transition placeholder-gray-300" placeholder="name@domain.com">
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide">Password</label>
+                        <button onclick="switchView('forgot')" class="text-[11px] font-bold text-indigo-500 hover:text-indigo-700 transition">Forgot password?</button>
+                    </div>
+                    <div class="relative">
+                        <input type="password" id="login-pass" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 font-semibold pr-16 transition placeholder-gray-300" placeholder="••••••••">
+                        <button type="button" onclick="togglePassword('login-pass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 hover:text-gray-700 transition">👁️ Show</button>
+                    </div>
+                </div>
+
+                <button onclick="login()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-md shadow-indigo-200 transition-all active:scale-95 text-sm uppercase tracking-wider mt-1">
+                    Login to Dashboard
+                </button>
+
+                <div class="relative my-2">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-100"></div></div>
+                    <div class="relative flex justify-center"><span class="px-3 bg-white lg:bg-gray-50 text-xs text-gray-400 font-bold">OR</span></div>
+                </div>
+
+                <!-- Trial CTA -->
+                <button onclick="switchView('register')" class="w-full flex items-center justify-center gap-2 border-2 border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black py-3.5 rounded-xl transition-all active:scale-95 text-sm">
+                    🎁 Start 7-Day Free Trial
+                </button>
+
+                <p class="text-center text-[11px] text-gray-400 font-medium mt-1">No credit card required &nbsp;·&nbsp; Cancel anytime</p>
+            </div>
+
+            <div id="view-forgot" class="space-y-4 hidden">
+                <div class="mb-2">
+                    <h2 class="text-xl font-black text-gray-900">Reset Password</h2>
+                    <p class="text-sm text-gray-500 font-medium mt-1">Enter your email and we'll send a reset code.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Registered Email</label>
+                    <input type="email" id="forgot-email" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 font-semibold transition">
+                </div>
+                <button onclick="sendForgotOtp()" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-xl shadow transition text-sm">Send Reset OTP</button>
+                <button onclick="switchView('login')" class="w-full text-xs font-bold text-gray-500 hover:text-gray-800 py-2 transition">← Back to Login</button>
+            </div>
+
+            <div id="view-reset" class="space-y-4 hidden">
+                <div class="mb-2">
+                    <h2 class="text-xl font-black text-gray-900">Create New Password</h2>
+                </div>
+                <div><input type="number" id="reset-otp" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono tracking-widest text-center focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 font-bold" placeholder="6-Digit OTP"></div>
+                <div class="relative">
+                    <input type="password" id="reset-pass" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 font-semibold transition" placeholder="New Password">
+                    <button type="button" onclick="togglePassword('reset-pass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 hover:text-gray-700 transition">👁️ Show</button>
+                </div>
+                <button onclick="resetPassword()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow transition text-sm">Set New Password</button>
+            </div>
+
+            <div id="view-register" class="space-y-4 hidden">
+                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 text-white mb-2">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xl">🎁</span>
+                        <p class="font-black text-base">7-Day Free Trial</p>
+                    </div>
+                    <p class="text-white/80 text-xs font-medium leading-relaxed">Get full access to all features for 7 days. No payment required. Enter your email to get started.</p>
+                    <div class="flex gap-3 mt-3 text-center">
+                        <div class="flex-1 bg-white/15 rounded-lg py-2">
+                            <p class="text-yellow-300 font-black text-sm">Free</p>
+                            <p class="text-white/70 text-[10px] font-bold">To Start</p>
+                        </div>
+                        <div class="flex-1 bg-white/15 rounded-lg py-2">
+                            <p class="text-yellow-300 font-black text-sm">7 Days</p>
+                            <p class="text-white/70 text-[10px] font-bold">Full Access</p>
+                        </div>
+                        <div class="flex-1 bg-white/15 rounded-lg py-2">
+                            <p class="text-yellow-300 font-black text-sm">∞</p>
+                            <p class="text-white/70 text-[10px] font-bold">Features</p>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Your Email</label>
+                    <input type="email" id="register-email" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 font-semibold transition">
+                </div>
+                <button onclick="sendRegisterOtp()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow shadow-indigo-200 transition text-sm">Get OTP & Start Trial</button>
+                <button onclick="switchView('login')" class="w-full text-xs font-bold text-gray-500 hover:text-gray-800 py-2 transition">← Already have an account? Login</button>
+            </div>
+
+            <div id="view-register-verify" class="space-y-4 hidden">
+                <div class="mb-2">
+                    <h2 class="text-xl font-black text-gray-900">Finalize Setup</h2>
+                    <p class="text-sm text-gray-500 font-medium mt-1">Enter the OTP sent to your email and set a password.</p>
+                </div>
+                <div><input type="number" id="register-otp" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono tracking-widest text-center focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 font-bold" placeholder="6-Digit OTP"></div>
+                <div class="relative">
+                    <input type="password" id="register-pass" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 font-semibold transition" placeholder="Create Password">
+                    <button type="button" onclick="togglePassword('register-pass', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 hover:text-gray-700 transition">👁️ Show</button>
+                </div>
+                <div id="reg-plan-selection" class="hidden">
+                    <label class="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Select Subscription Plan</label>
+                    <select id="register-plan" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"></select>
+                </div>
+                <button onclick="verifyAndRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-xl shadow shadow-emerald-200 transition text-sm">Complete Registration</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white font-bold text-sm px-5 py-3 rounded-full shadow-lg transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 whitespace-nowrap tracking-wide border border-gray-700"></div>
 
     <script>
         function showToast(msg) {
@@ -106,7 +267,7 @@
         function switchView(viewId) {
             document.querySelectorAll('div[id^="view-"]').forEach(el => el.classList.add('hidden'));
             document.getElementById(`view-${viewId}`).classList.remove('hidden');
-            
+
             if (viewId === 'register') {
                 fetch('/api/public_config')
                 .then(res => res.json())
@@ -125,7 +286,7 @@
 
         function togglePassword(fieldId, btnEl) {
             const input = document.getElementById(fieldId);
-            if (input.type === "password") { input.type = "text"; btnEl.innerText = "🙈 Hide"; } 
+            if (input.type === "password") { input.type = "text"; btnEl.innerText = "🙈 Hide"; }
             else { input.type = "password"; btnEl.innerText = "👁️ Show"; }
         }
 
@@ -186,7 +347,6 @@
             const pass = document.getElementById('register-pass').value;
             const planId = document.getElementById('register-plan').value;
             if(!otp || !pass) return showToast("⚠️ Fill all fields");
-            
             showToast("⏳ Registering...");
             try {
                 const res = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: email, otp: otp, password: pass, plan_id: planId}) });
