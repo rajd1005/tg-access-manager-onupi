@@ -3,8 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    {% if og.title %}
+    <title>{{ og.title }}{% if seo.site_title %} — {{ seo.site_title }}{% endif %}</title>
+    <meta name="description" content="{{ og.description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ page_url }}">
+    <meta property="og:title" content="{{ og.title }}">
+    <meta property="og:description" content="{{ og.description }}">
+    {% if og.image_url_abs %}<meta property="og:image" content="{{ og.image_url_abs }}">{% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ og.title }}">
+    <meta name="twitter:description" content="{{ og.description }}">
+    {% if og.image_url_abs %}<meta name="twitter:image" content="{{ og.image_url_abs }}">{% endif %}
+    {% else %}
     {% if seo.site_title %}<title>{{ seo.site_title }} — Checkout</title>{% else %}<title>Secure Checkout</title>{% endif %}
     {% if seo.site_tagline %}<meta name="description" content="{{ seo.site_tagline }}">{% endif %}
+    {% endif %}
     {% if seo.site_icon %}<link rel="icon" href="{{ seo.site_icon }}">{% endif %}
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -23,7 +37,7 @@
         .hero-img { object-fit: cover; object-position: center; width: 100%; height: 100%; }
         details > summary { list-style: none; }
         details > summary::-webkit-details-marker { display: none; }
-        .hero-container { aspect-ratio: 3/1; background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
+        .hero-container { aspect-ratio: 3/2; background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
         /* Description HTML styling (from Quill) */
         .desc-content p { margin-bottom: 0.5rem; color: #4b5563; font-size: 0.875rem; line-height: 1.6; }
         .desc-content p:last-child { margin-bottom: 0; }
@@ -38,13 +52,12 @@
         .desc-content ol { padding-left: 1.25rem; margin: 0.25rem 0; }
         .desc-content ol li { margin-bottom: 0.4rem; color: #374151; font-size: 0.875rem; }
         .desc-content a { color: #6366f1; text-decoration: underline; }
-        /* Mobile step dots */
-        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 900; flex-shrink: 0; transition: all 0.3s; }
-        .step-dot-active { background: #6366f1; color: white; }
-        .step-dot-inactive { background: #e5e7eb; color: #9ca3af; }
+        /* Mobile sticky bottom bar */
+        .mobile-sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; }
+        @media (min-width: 1024px) { .mobile-sticky-bar { display: none !important; } }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen pb-24 lg:pb-0">
 
     <!-- Sticky Header -->
     <header class="bg-white border-b border-gray-100 sticky top-0 z-50" style="box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
@@ -62,29 +75,13 @@
 
     <!-- INIT VIEW -->
     <div id="init-view">
-
-        <!-- Mobile Step Indicator (hidden lg+) -->
-        <div id="mobile-step-bar" class="lg:hidden bg-white border-b border-gray-100 px-4 py-3">
-            <div class="flex items-center justify-center gap-2 max-w-[160px] mx-auto">
-                <div id="step-dot-1" class="step-dot step-dot-active">1</div>
-                <div class="flex-1 h-0.5 bg-gray-200 rounded overflow-hidden">
-                    <div id="step-line" class="h-full bg-indigo-500 rounded transition-all duration-300" style="width:0%"></div>
-                </div>
-                <div id="step-dot-2" class="step-dot step-dot-inactive">2</div>
-            </div>
-            <div class="flex justify-between text-[10px] font-bold mt-1.5 max-w-[160px] mx-auto">
-                <span id="step-label-1" class="text-indigo-600">Details</span>
-                <span id="step-label-2" class="text-gray-400">Checkout</span>
-            </div>
-        </div>
-
         <div class="max-w-6xl mx-auto px-3 sm:px-4 py-4 lg:py-10">
             <div class="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start">
 
                 <!-- STEP 1 / LEFT: Product Info -->
                 <div id="mobile-step-1" class="w-full lg:flex-1 space-y-5">
 
-                    <!-- Hero Image -->
+                    <!-- Hero Image (above description) -->
                     <div id="plan-image-container" class="hidden rounded-2xl overflow-hidden card-shadow hero-container">
                         <img id="plan-image" src="" alt="Product Cover" class="hero-img">
                     </div>
@@ -110,6 +107,17 @@
                         </div>
                     </div>
 
+                    <!-- Store Info -->
+                    <div id="store-info-bar" class="hidden bg-white rounded-2xl border border-gray-100 px-4 py-3 flex items-center gap-3 card-shadow">
+                        <div id="store-logo-wrapper" class="hidden w-9 h-9 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                            <img id="store-logo-img" src="" alt="" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Sold by</p>
+                            <p id="store-name-text" class="text-sm font-black text-gray-800"></p>
+                        </div>
+                    </div>
+
                     <!-- Trust Badges -->
                     <div class="grid grid-cols-3 gap-3">
                         <div class="text-center p-3 bg-white rounded-xl border border-gray-100 card-shadow">
@@ -126,20 +134,6 @@
                         </div>
                     </div>
 
-                    <!-- Mobile: price summary + continue button (hidden on desktop) -->
-                    <div class="lg:hidden">
-                        <div class="bg-white rounded-2xl border border-gray-100 card-shadow p-4 flex items-center justify-between gap-4">
-                            <div class="min-w-0">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Total</p>
-                                <p id="mobile-price" class="text-2xl font-black text-indigo-700 font-mono tracking-tight">₹0.00</p>
-                                <p id="mobile-duration" class="text-[11px] text-gray-500 font-semibold hidden mt-0.5"></p>
-                            </div>
-                            <button onclick="goToStep2()" class="gradient-btn shrink-0 text-white font-black px-5 py-3 rounded-xl text-sm uppercase tracking-wider active:scale-95 transition" style="box-shadow:0 4px 14px rgba(102,126,234,0.4);">
-                                Continue →
-                            </button>
-                        </div>
-                    </div>
-
                 </div>
 
                 <!-- STEP 2 / RIGHT: Checkout Form (hidden on mobile, always visible on desktop) -->
@@ -150,6 +144,17 @@
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                         Back to Details
                     </button>
+
+                    <!-- Mobile: mini store info row in step 2 -->
+                    <div id="store-info-step2" class="lg:hidden hidden bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex items-center gap-2.5 mb-3 card-shadow">
+                        <div id="store-logo-step2-wrapper" class="hidden w-8 h-8 rounded-lg overflow-hidden border border-gray-100 shrink-0">
+                            <img id="store-logo-step2-img" src="" alt="" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-black text-gray-400 uppercase tracking-wider">Sold by</p>
+                            <p id="store-name-step2-text" class="text-xs font-black text-gray-800"></p>
+                        </div>
+                    </div>
 
                     <div class="bg-white rounded-2xl border border-gray-100 card-shadow overflow-hidden lg:sticky lg:top-20">
 
@@ -200,18 +205,32 @@
                                 </div>
                             </div>
 
-                            <!-- CTA -->
-                            <button onclick="initiateCheckout()" id="checkout-btn" class="gradient-btn w-full text-white font-black py-4 rounded-xl transition-all active:scale-95 text-sm uppercase tracking-wider flex items-center justify-center gap-2 mt-2" style="box-shadow: 0 4px 14px rgba(102,126,234,0.4);">
+                            <!-- Desktop CTA (hidden on mobile, sticky bar handles it) -->
+                            <button onclick="initiateCheckout()" id="checkout-btn" class="gradient-btn hidden lg:flex w-full text-white font-black py-4 rounded-xl transition-all active:scale-95 text-sm uppercase tracking-wider items-center justify-center gap-2 mt-2" style="box-shadow: 0 4px 14px rgba(102,126,234,0.4);">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
                                 Proceed to Checkout
                             </button>
 
-                            <p class="text-center text-[10px] text-gray-400 font-medium">🔐 Your information is encrypted &amp; secure</p>
+                            <p class="text-center text-[10px] text-gray-400 font-medium hidden lg:block">🔐 Your information is encrypted &amp; secure</p>
                         </div>
                     </div>
                 </div>
 
             </div>
+        </div>
+    </div>
+
+    <!-- Mobile Sticky Bottom Bar -->
+    <div class="mobile-sticky-bar bg-white border-t border-gray-200 px-4 py-3" style="box-shadow: 0 -4px 16px rgba(0,0,0,0.08);">
+        <div class="flex items-center justify-between gap-3 max-w-lg mx-auto">
+            <div class="min-w-0">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total</p>
+                <p id="mobile-price" class="text-xl font-black text-indigo-700 font-mono tracking-tight leading-tight">₹0.00</p>
+                <p id="mobile-duration" class="text-[10px] text-gray-500 font-semibold hidden"></p>
+            </div>
+            <button id="mobile-pay-btn" onclick="handleMobilePayBtn()" class="gradient-btn shrink-0 text-white font-black px-7 py-3.5 rounded-xl text-sm uppercase tracking-wider active:scale-95 transition" style="box-shadow:0 4px 14px rgba(102,126,234,0.4);">
+                Pay Now
+            </button>
         </div>
     </div>
 
@@ -233,7 +252,6 @@
                     <div class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-full font-bold text-xs">
                         <div class="spinner"></div> Waiting for confirmation...
                     </div>
-
                     <details class="text-left border-t border-gray-100 pt-5 mt-2">
                         <summary class="text-[11px] font-bold text-gray-400 cursor-pointer text-center hover:text-gray-600 transition">Payment done but stuck? Click here</summary>
                         <div class="bg-gray-50 rounded-xl border border-gray-200 p-4 mt-4 space-y-3">
@@ -258,9 +276,7 @@
                     <p class="text-sm text-gray-500 font-medium">A receipt has been sent to your email.</p>
                 </div>
                 <div class="p-6 space-y-4">
-                    <div id="tg-link-container" class="space-y-3 hidden">
-                        <!-- Access links rendered by JS -->
-                    </div>
+                    <div id="tg-link-container" class="space-y-3 hidden"></div>
                     <a id="join-btn" href="#" target="_blank" class="gradient-btn block w-full text-white font-black py-4 rounded-xl transition-all active:scale-95 text-sm uppercase tracking-wider text-center hidden" style="box-shadow: 0 4px 14px rgba(102,126,234,0.4);">🚀 Access Your Content Now</a>
                     <p id="tg-warning" class="text-[11px] text-red-500 font-bold uppercase tracking-wider hidden text-center bg-red-50 py-2.5 rounded-xl border border-red-100">⚠️ Do not share this link — it expires after 1 use</p>
                 </div>
@@ -275,29 +291,34 @@
         let discount = 0;
         let pollInterval = null;
         let isFlexible = false;
+        let mobileStep = 1; // 1 = details, 2 = form
 
         function goToStep2() {
             if (window.innerWidth >= 1024) return;
+            mobileStep = 2;
             document.getElementById('mobile-step-1').classList.add('hidden');
             document.getElementById('mobile-step-2').classList.remove('hidden');
-            document.getElementById('step-dot-1').className = 'step-dot step-dot-inactive';
-            document.getElementById('step-dot-2').className = 'step-dot step-dot-active';
-            document.getElementById('step-line').style.width = '100%';
-            document.getElementById('step-label-1').className = 'text-gray-400';
-            document.getElementById('step-label-2').className = 'text-indigo-600';
+            // Show store info in step 2
+            const step2Store = document.getElementById('store-info-step2');
+            if (step2Store) step2Store.classList.remove('hidden');
             window.scrollTo(0, 0);
         }
 
         function goToStep1() {
             if (window.innerWidth >= 1024) return;
+            mobileStep = 1;
             document.getElementById('mobile-step-2').classList.add('hidden');
             document.getElementById('mobile-step-1').classList.remove('hidden');
-            document.getElementById('step-dot-1').className = 'step-dot step-dot-active';
-            document.getElementById('step-dot-2').className = 'step-dot step-dot-inactive';
-            document.getElementById('step-line').style.width = '0%';
-            document.getElementById('step-label-1').className = 'text-indigo-600';
-            document.getElementById('step-label-2').className = 'text-gray-400';
             window.scrollTo(0, 0);
+        }
+
+        function handleMobilePayBtn() {
+            if (window.innerWidth >= 1024) return;
+            if (mobileStep === 1) {
+                goToStep2();
+            } else {
+                initiateCheckout();
+            }
         }
 
         function renderMarkdown(text) {
@@ -350,6 +371,20 @@
                             document.getElementById('plan-details').innerHTML = html;
                             document.getElementById('plan-details-wrapper').classList.remove('hidden');
                         }
+                    }
+
+                    // Store info
+                    if (data.store_name) {
+                        document.getElementById('store-name-text').innerText = data.store_name;
+                        document.getElementById('store-name-step2-text').innerText = data.store_name;
+                        if (data.store_logo_url) {
+                            document.getElementById('store-logo-img').src = data.store_logo_url;
+                            document.getElementById('store-logo-wrapper').classList.remove('hidden');
+                            document.getElementById('store-logo-step2-img').src = data.store_logo_url;
+                            document.getElementById('store-logo-step2-wrapper').classList.remove('hidden');
+                        }
+                        document.getElementById('store-info-bar').classList.remove('hidden');
+                        document.getElementById('store-info-step2').classList.remove('hidden');
                     }
 
                     if (data.type === 'TG_PLAN' && data.duration_days !== undefined) {
@@ -437,10 +472,14 @@
             if (!name || !email || !mobile) return alert("Name, Email, and Mobile Number are required.");
             if (isFlexible && parseFloat(flexAmt) <= 0) return alert("Please enter a valid amount.");
 
-            const btn = document.getElementById('checkout-btn');
-            const orig = btn.innerHTML;
-            btn.innerHTML = `<div class="spinner" style="border-left-color:white;border-color:rgba(255,255,255,0.3);"></div> Processing...`;
-            btn.disabled = true;
+            // Update sticky bar button to show loading
+            const mobileBtn = document.getElementById('mobile-pay-btn');
+            const desktopBtn = document.getElementById('checkout-btn');
+            const mobileBtnOrig = mobileBtn.innerHTML;
+            const desktopBtnOrig = desktopBtn ? desktopBtn.innerHTML : '';
+            mobileBtn.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-left-color:white;border-color:rgba(255,255,255,0.3);"></div>`;
+            mobileBtn.disabled = true;
+            if (desktopBtn) { desktopBtn.innerHTML = `<div class="spinner" style="border-left-color:white;border-color:rgba(255,255,255,0.3);"></div> Processing...`; desktopBtn.disabled = true; }
 
             try {
                 const res = await fetch('/api/public/checkout/initiate', {
@@ -458,6 +497,7 @@
                     }
                 } else if (data.status === 'success') {
                     document.getElementById('init-view').classList.add('hidden');
+                    document.querySelector('.mobile-sticky-bar').classList.add('hidden');
                     document.getElementById('pay-view').classList.remove('hidden');
                     document.getElementById('pay-amt-txt').innerText = `₹${data.amount.toFixed(2)}`;
                     document.getElementById('active-txn-id').value = data.txn_id;
@@ -468,13 +508,13 @@
                     pollStatus(data.txn_id);
                 } else {
                     alert(data.message);
-                    btn.innerHTML = orig;
-                    btn.disabled = false;
+                    mobileBtn.innerHTML = mobileBtnOrig; mobileBtn.disabled = false;
+                    if (desktopBtn) { desktopBtn.innerHTML = desktopBtnOrig; desktopBtn.disabled = false; }
                 }
             } catch (e) {
                 alert("Server error. Please try again.");
-                btn.innerHTML = orig;
-                btn.disabled = false;
+                mobileBtn.innerHTML = mobileBtnOrig; mobileBtn.disabled = false;
+                if (desktopBtn) { desktopBtn.innerHTML = desktopBtnOrig; desktopBtn.disabled = false; }
             }
         }
 
@@ -532,6 +572,7 @@
             document.getElementById('init-view').classList.add('hidden');
             document.getElementById('pay-view').classList.add('hidden');
             document.getElementById('success-view').classList.remove('hidden');
+            document.querySelector('.mobile-sticky-bar').classList.add('hidden');
 
             if (linksStr && linksStr.trim()) {
                 const links = linksStr.split('\n').filter(l => l.trim());

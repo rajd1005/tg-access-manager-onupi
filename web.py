@@ -95,6 +95,12 @@ def init_auth_db():
     try: cursor.execute("ALTER TABLE payment_links ADD COLUMN has_image INTEGER DEFAULT 0")
     except: pass
 
+    # --- Agent Store Branding ---
+    try: cursor.execute("ALTER TABLE web_users ADD COLUMN store_name TEXT DEFAULT ''")
+    except: pass
+    try: cursor.execute("ALTER TABLE web_users ADD COLUMN store_has_logo INTEGER DEFAULT 0")
+    except: pass
+
     # Generate webhook keys for any existing users that don't have one
     cursor.execute("SELECT id FROM web_users WHERE webhook_key = '' OR webhook_key IS NULL")
     for row in cursor.fetchall():
@@ -143,6 +149,28 @@ def get_bot_token():
     conn.close()
     if row and row[0]: return row[0]
     return os.getenv("TELEGRAM_BOT_TOKEN", "")
+
+def get_checkout_meta(plan_id: str):
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT plan_name, description, has_image FROM customer_plans WHERE id=? AND is_active=1", (plan_id,))
+        row = c.fetchone()
+        if row:
+            img_url = f"/api/image/plan_image_{plan_id}.jpg" if row[2] else None
+            desc = re.sub(r'<[^>]+>', ' ', row[1] or '').strip()[:200]
+            conn.close()
+            return {"title": row[0], "description": desc, "image_url": img_url}
+        c.execute("SELECT title, description, has_image FROM payment_links WHERE id=? AND is_active=1", (plan_id,))
+        row = c.fetchone()
+        conn.close()
+        if row:
+            img_url = f"/api/image/link_image_{plan_id}.jpg" if row[2] else None
+            desc = re.sub(r'<[^>]+>', ' ', row[1] or '').strip()[:200]
+            return {"title": row[0], "description": desc, "image_url": img_url}
+    except:
+        pass
+    return {}
 
 def get_seo_data():
     conn = get_db_connection()
@@ -225,15 +253,16 @@ def get_current_user(request: Request):
     if not session:
         conn.close(); raise HTTPException(status_code=401, detail="Session expired")
     
-    cursor.execute("SELECT id, email, role, invite_durations, extend_durations, notify_join, notify_leave, expiry_date, agent_upi_id, webhook_key FROM web_users WHERE email=?", (session[0],))
+    cursor.execute("SELECT id, email, role, invite_durations, extend_durations, notify_join, notify_leave, expiry_date, agent_upi_id, webhook_key, store_name, store_has_logo FROM web_users WHERE email=?", (session[0],))
     user = cursor.fetchone()
     conn.close()
     if not user: raise HTTPException(status_code=401, detail="User not found")
-    
+
     return {
-        "id": user[0], "email": user[1], "role": user[2], "invite_durations": user[3], 
-        "extend_durations": user[4], "notify_join": user[5], "notify_leave": user[6], 
-        "expiry_date": user[7], "agent_upi_id": user[8], "webhook_key": user[9]
+        "id": user[0], "email": user[1], "role": user[2], "invite_durations": user[3],
+        "extend_durations": user[4], "notify_join": user[5], "notify_leave": user[6],
+        "expiry_date": user[7], "agent_upi_id": user[8], "webhook_key": user[9],
+        "store_name": user[10] or "", "store_has_logo": user[11] or 0
     }
 
 def verify_channel_access(cursor, channel_id, user):
@@ -276,7 +305,11 @@ async def dashboard(request: Request):
 
 @app.get("/checkout/{plan_id}", response_class=HTMLResponse)
 async def checkout_page(request: Request, plan_id: str):
-    return templates.TemplateResponse(request=request, name="checkout.html", context={"plan_id": plan_id, "seo": get_seo_data()})
+    og = get_checkout_meta(plan_id)
+    base_url = str(request.base_url).rstrip('/')
+    if og.get('image_url'):
+        og['image_url_abs'] = base_url + og['image_url']
+    return templates.TemplateResponse(request=request, name="checkout.html", context={"plan_id": plan_id, "seo": get_seo_data(), "og": og, "page_url": str(request.url)})
 
 
 # --- CONFIG & AUTH APIs ---
@@ -739,10 +772,9 @@ async def api_public_checkout_plan(plan_id: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT p.plan_name, p.price, p.duration_days, p.description, p.is_active, u.agent_upi_id, p.channel_id, p.agent_id, p.has_image FROM customer_plans p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
+    cursor.execute("SELECT p.plan_name, p.price, p.duration_days, p.description, p.is_active, u.agent_upi_id, p.channel_id, p.agent_id, p.has_image, u.store_name, u.store_has_logo FROM customer_plans p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
     row = cursor.fetchone()
     if row and row[4] == 1:
-        # Fetch all channel names
         channel_ids = [c.strip() for c in str(row[6]).split(',') if c.strip()]
         if channel_ids:
             placeholders = ','.join('?' for _ in channel_ids)
@@ -751,17 +783,18 @@ async def api_public_checkout_plan(plan_id: str):
             channel_name_str = " & ".join(names) if names else "Multiple Channels"
         else:
             channel_name_str = "Telegram Channel"
-
         image_url = f"/api/image/plan_image_{plan_id}.jpg" if row[8] else None
+        store_logo_url = f"/api/image/store_logo_{row[7]}.jpg" if row[10] else None
         conn.close()
-        return {"status": "success", "plan_name": row[0], "price": row[1], "duration_days": row[2], "description": row[3], "agent_upi_id": row[5], "channel_name": channel_name_str, "agent_id": row[7], "type": "TG_PLAN", "image_url": image_url}
+        return {"status": "success", "plan_name": row[0], "price": row[1], "duration_days": row[2], "description": row[3], "agent_upi_id": row[5], "channel_name": channel_name_str, "agent_id": row[7], "type": "TG_PLAN", "image_url": image_url, "store_name": row[9] or "", "store_logo_url": store_logo_url}
 
-    cursor.execute("SELECT p.title, p.amount, p.type, p.redirect_url, p.is_active, u.agent_upi_id, p.agent_id, p.description, p.has_image FROM payment_links p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
+    cursor.execute("SELECT p.title, p.amount, p.type, p.redirect_url, p.is_active, u.agent_upi_id, p.agent_id, p.description, p.has_image, u.store_name, u.store_has_logo FROM payment_links p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
     row = cursor.fetchone()
     conn.close()
     if row and row[4] == 1:
         image_url = f"/api/image/link_image_{plan_id}.jpg" if row[8] else None
-        return {"status": "success", "plan_name": row[0], "price": row[1], "link_type": row[2], "redirect_url": row[3], "agent_upi_id": row[5], "agent_id": row[6], "description": row[7], "type": "PAYMENT_LINK", "channel_name": "Payment Link", "image_url": image_url}
+        store_logo_url = f"/api/image/store_logo_{row[6]}.jpg" if row[10] else None
+        return {"status": "success", "plan_name": row[0], "price": row[1], "link_type": row[2], "redirect_url": row[3], "agent_upi_id": row[5], "agent_id": row[6], "description": row[7], "type": "PAYMENT_LINK", "channel_name": "Payment Link", "image_url": image_url, "store_name": row[9] or "", "store_logo_url": store_logo_url}
 
     return {"status": "error", "message": "Item not found or inactive."}
 
@@ -901,6 +934,25 @@ async def api_user_agent_upi(req: Request, user: dict = Depends(get_current_user
     data = await req.json()
     conn = get_db_connection()
     conn.execute("UPDATE web_users SET agent_upi_id=? WHERE id=?", (data.get('upi_id', ''), user['id']))
+    conn.commit(); conn.close()
+    return {"status": "success"}
+
+@app.post("/api/user/store")
+async def api_user_store(req: Request, user: dict = Depends(get_current_user)):
+    data = await req.json()
+    conn = get_db_connection()
+    store_name = data.get('store_name', '').strip()
+    logo_data = data.get('logo', None)
+    has_logo = user.get('store_has_logo', 0)
+    if logo_data == "DELETE":
+        path = f"/app/data/store_logo_{user['id']}.jpg"
+        if os.path.exists(path): os.remove(path)
+        has_logo = 0
+    elif logo_data and logo_data.startswith("data:image"):
+        path = f"/app/data/store_logo_{user['id']}.jpg"
+        with open(path, "wb") as f: f.write(base64.b64decode(logo_data.split(",", 1)[1]))
+        has_logo = 1
+    conn.execute("UPDATE web_users SET store_name=?, store_has_logo=? WHERE id=?", (store_name, has_logo, user['id']))
     conn.commit(); conn.close()
     return {"status": "success"}
 
@@ -1345,7 +1397,8 @@ async def api_get_data(user: dict = Depends(get_current_user)):
         "user_settings": {
             "invite_durations": user['invite_durations'], "extend_durations": user['extend_durations'],
             "notify_join": user['notify_join'], "notify_leave": user['notify_leave'],
-            "expiry_date": user['expiry_date'], "agent_upi_id": user['agent_upi_id'], "webhook_key": user.get('webhook_key', ''), "is_expired": is_expired, "id": user['id']
+            "expiry_date": user['expiry_date'], "agent_upi_id": user['agent_upi_id'], "webhook_key": user.get('webhook_key', ''), "is_expired": is_expired, "id": user['id'],
+            "store_name": user.get('store_name', ''), "store_has_logo": user.get('store_has_logo', 0)
         }
     }
 

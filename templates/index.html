@@ -22,7 +22,7 @@
         .ql-editor { min-height: 110px; max-height: 280px; overflow-y: auto; }
         .ql-editor.ql-blank::before { color: #9ca3af; font-style: normal; font-size: 0.8rem; }
         .ql-snow .ql-toolbar button { width: 26px; height: 26px; }
-        .banner-preview { aspect-ratio: 3/1; min-height: 80px; background: linear-gradient(135deg,#f3f4f6,#e5e7eb); }
+        .banner-preview { aspect-ratio: 3/2; min-height: 80px; background: linear-gradient(135deg,#f3f4f6,#e5e7eb); }
         .banner-preview img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
     </style>
 </head>
@@ -234,7 +234,35 @@
                 
                 <div id="set-b2c-upi" class="settings-pane space-y-5">
                     <h2 class="text-sm font-black text-teal-800 border-b pb-2 mb-3">⚙️ Store Setup & Integrations</h2>
-                    
+
+                    <!-- Store Branding (mandatory for checkout pages) -->
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200 space-y-3">
+                        <div class="flex items-start gap-2">
+                            <span class="text-lg">🏪</span>
+                            <div>
+                                <h3 class="text-sm font-black text-indigo-900">Store Branding <span class="text-red-500">*</span></h3>
+                                <p class="text-xs text-indigo-600 font-medium mt-0.5">Store name is required before publishing any checkout page.</p>
+                            </div>
+                        </div>
+                        <div id="store-name-warning" class="hidden bg-red-50 border border-red-200 rounded-lg p-2.5 text-xs font-bold text-red-700">⚠️ Please set your Store Name before adding plans or payment links.</div>
+                        <div>
+                            <label class="text-sm font-bold text-gray-700 block mb-1">Store Name <span class="text-red-500">*</span>:</label>
+                            <input type="text" id="store-name-input" placeholder="e.g. My Trading Signals" class="w-full p-2.5 text-sm border rounded bg-white">
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-gray-700 block mb-1">Store Logo <span class="text-xs font-normal text-gray-400">(optional, square recommended)</span>:</label>
+                            <div class="flex items-center gap-3">
+                                <div id="store-logo-preview-box" class="hidden relative w-16 h-16 rounded-xl overflow-hidden border-2 border-indigo-200 bg-gray-100 shrink-0">
+                                    <img id="store-logo-preview" src="" alt="Store Logo" class="w-full h-full object-cover">
+                                    <button type="button" onclick="removeStoreLogo()" class="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs font-bold opacity-0 hover:opacity-100 transition">✕</button>
+                                </div>
+                                <input type="file" id="store-logo-file" accept="image/*" onchange="previewStoreLogo()" class="flex-1 p-2 text-sm border rounded bg-white file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                                <input type="hidden" id="store-logo-data" value="">
+                            </div>
+                        </div>
+                        <button onclick="saveStoreInfo()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded text-sm transition w-full">💾 Save Store Info</button>
+                    </div>
+
                     <div class="bg-gray-50 p-4 rounded-lg border border-teal-100">
                         <label class="text-sm font-bold text-gray-700">Your UPI ID (Where customers pay you):</label>
                         <div class="flex gap-2 mt-2">
@@ -814,6 +842,18 @@
                     document.getElementById('user-notify-join').value = rawData.user_settings.notify_join || "true";
                     document.getElementById('user-notify-leave').value = rawData.user_settings.notify_leave || "true";
                     document.getElementById('agent-upi-id').value = rawData.user_settings.agent_upi_id || "";
+                    // Store branding
+                    document.getElementById('store-name-input').value = rawData.user_settings.store_name || '';
+                    if (rawData.user_settings.store_has_logo) {
+                        const ts = Date.now();
+                        document.getElementById('store-logo-preview').src = `/api/image/store_logo_${rawData.user_settings.id}.jpg?t=${ts}`;
+                        document.getElementById('store-logo-preview-box').classList.remove('hidden');
+                    } else {
+                        document.getElementById('store-logo-preview-box').classList.add('hidden');
+                    }
+                    if (!rawData.user_settings.store_name) {
+                        document.getElementById('store-name-warning').classList.remove('hidden');
+                    }
                 }
 
                 populateDropdowns(); applyFilters(); renderStats(); renderB2cUI();
@@ -849,6 +889,38 @@
             showToast("⏳ Saving...");
             const res = await fetch('/api/user/agent_upi', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({upi_id: upi}) });
             if((await res.json()).status === 'success') { showToast("✅ Saved!"); }
+        }
+
+        async function previewStoreLogo() {
+            const file = document.getElementById('store-logo-file').files[0];
+            if (!file) return;
+            const b64 = await compressBannerImage(file);
+            document.getElementById('store-logo-data').value = b64;
+            document.getElementById('store-logo-preview').src = b64;
+            document.getElementById('store-logo-preview-box').classList.remove('hidden');
+        }
+
+        function removeStoreLogo() {
+            document.getElementById('store-logo-data').value = 'DELETE';
+            document.getElementById('store-logo-file').value = '';
+            document.getElementById('store-logo-preview-box').classList.add('hidden');
+        }
+
+        async function saveStoreInfo() {
+            const name = document.getElementById('store-name-input').value.trim();
+            if (!name) return showToast("⚠️ Store Name is required.");
+            const logo = document.getElementById('store-logo-data').value;
+            showToast("⏳ Saving...");
+            const payload = { store_name: name };
+            if (logo) payload.logo = logo;
+            const res = await fetch('/api/user/store', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            if ((await res.json()).status === 'success') {
+                document.getElementById('store-logo-data').value = '';
+                document.getElementById('store-logo-file').value = '';
+                document.getElementById('store-name-warning').classList.add('hidden');
+                showToast("✅ Store Info Saved!");
+                fetchData();
+            }
         }
 
         function editB2cPlan(id, name, cid, price, days, desc, allowFree, extraEmails, hasImage) {
@@ -976,6 +1048,7 @@
             const imgData = document.getElementById('b2c-plan-img-data').value;
 
             if(!n || !c || !p || !d) return showToast("⚠️ Fill all required fields");
+            if(!(rawData.user_settings && rawData.user_settings.store_name)) return showToast("⚠️ Set your Store Name in Store Setup first.");
 
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -1083,6 +1156,7 @@
 
             if(!t) return showToast("⚠️ Title is required.");
             if(type === 'FIXED' && !a) return showToast("⚠️ Fixed links require an amount.");
+            if(!(rawData.user_settings && rawData.user_settings.store_name)) return showToast("⚠️ Set your Store Name in Store Setup first.");
 
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
