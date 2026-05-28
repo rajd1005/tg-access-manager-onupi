@@ -51,12 +51,24 @@ def init_auth_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, agent_email TEXT, plan_id INTEGER, amount REAL, status TEXT, utr TEXT, created_at TEXT)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS received_sms (id INTEGER PRIMARY KEY AUTOINCREMENT, utr TEXT UNIQUE, amount REAL, timestamp TEXT, matched TEXT DEFAULT 'false')''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS upi_ids (id INTEGER PRIMARY KEY AUTOINCREMENT, upi_id TEXT UNIQUE, is_primary INTEGER DEFAULT 0)''')
-    
+
     try: cursor.execute("ALTER TABLE plans ADD COLUMN details TEXT DEFAULT ''")
     except: pass
     try: cursor.execute("ALTER TABLE plans ADD COLUMN duration_str TEXT")
     except: pass
-    
+
+    # Seed default subscription plans if none exist
+    cursor.execute("SELECT COUNT(*) FROM plans")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO plans (name, price, duration_str, details) VALUES (?, ?, ?, ?)", (
+            "Monthly Plan", 499, "30",
+            "Unlimited Telegram channels\nAuto member add & kick on expiry\nUPI payment collection\nBeautiful branded checkout pages\nCoupon codes & discounts\nCustomer analytics dashboard\nEmail receipt for every sale\nSMS Webhook payment automation\nStandard email support"
+        ))
+        cursor.execute("INSERT INTO plans (name, price, duration_str, details) VALUES (?, ?, ?, ?)", (
+            "6-Month Plan", 2999, "180",
+            "Everything in Monthly Plan\nSave ₹1,000 vs buying monthly!\nAgent & reseller sub-accounts\nWordPress Gravity Forms integration\nUnlimited active subscribers\nPayment link generator\nCustom store branding\nPriority email support"
+        ))
+
     # B2C SaaS Tables
     cursor.execute('''CREATE TABLE IF NOT EXISTS customer_plans (id TEXT PRIMARY KEY, agent_id INTEGER, channel_id INTEGER, plan_name TEXT, price REAL, duration_days INTEGER, description TEXT, is_active INTEGER DEFAULT 1)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS coupons (id INTEGER PRIMARY KEY AUTOINCREMENT, agent_id INTEGER, code TEXT, discount_pct INTEGER, max_uses INTEGER, used_count INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, plan_id TEXT DEFAULT '')''')
