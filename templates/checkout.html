@@ -26,6 +26,8 @@
         details > summary { list-style: none; }
         details > summary::-webkit-details-marker { display: none; }
         .trust-badge { background: rgba(255,255,255,0.7); backdrop-filter: blur(8px); }
+        .hero-container { aspect-ratio: 16/9; background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
+        @media (min-width: 1024px) { .hero-container { aspect-ratio: 16/7; } }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen" style="font-family: 'Inter', sans-serif;">
@@ -46,14 +48,14 @@
 
     <!-- INIT VIEW -->
     <div id="init-view">
-        <div class="max-w-6xl mx-auto px-4 py-6 lg:py-10">
+        <div class="max-w-6xl mx-auto px-3 sm:px-4 py-4 lg:py-10">
             <div class="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start">
 
                 <!-- LEFT: Product Info -->
                 <div class="w-full lg:flex-1 space-y-5">
 
                     <!-- Hero Image -->
-                    <div id="plan-image-container" class="hidden rounded-2xl overflow-hidden card-shadow" style="aspect-ratio: 16/7; background: linear-gradient(135deg, #f3f4f6, #e5e7eb);">
+                    <div id="plan-image-container" class="hidden rounded-2xl overflow-hidden card-shadow hero-container">
                         <img id="plan-image" src="" alt="Product Cover" class="hero-img">
                     </div>
 
@@ -97,7 +99,7 @@
 
                 <!-- RIGHT: Checkout Form -->
                 <div class="w-full lg:w-96 lg:shrink-0">
-                    <div class="bg-white rounded-2xl border border-gray-100 card-shadow overflow-hidden sticky top-20">
+                    <div class="bg-white rounded-2xl border border-gray-100 card-shadow overflow-hidden lg:sticky lg:top-20">
 
                         <!-- Price Banner -->
                         <div class="gradient-bg px-6 py-5 text-white">
@@ -222,6 +224,29 @@
         let pollInterval = null;
         let isFlexible = false;
 
+        function renderMarkdown(text) {
+            if (!text || !text.trim()) return '';
+            const lines = text.split('\n');
+            return lines.map(line => {
+                const t = line.trim();
+                if (!t) return '';
+                const fmt = t
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/_(.+?)_/g, '<em>$1</em>');
+                if (t.startsWith('# ')) {
+                    return `<div class="font-black text-gray-900 text-sm mt-3 mb-1">${fmt.replace(/^#\s*/, '')}</div>`;
+                } else if (t.startsWith('## ')) {
+                    return `<div class="font-bold text-gray-700 text-sm mt-2 mb-0.5">${fmt.replace(/^##\s*/, '')}</div>`;
+                } else if (t.startsWith('- ') || t.startsWith('• ')) {
+                    const content = fmt.replace(/^[-•]\s*/, '');
+                    return `<div class="flex items-start gap-2"><span class="text-emerald-500 font-black shrink-0 mt-0.5">✓</span><span class="text-gray-700">${content}</span></div>`;
+                } else {
+                    return `<div class="text-gray-600 text-sm leading-relaxed py-0.5">${fmt}</div>`;
+                }
+            }).filter(h => h).join('');
+        }
+
         async function init() {
             try {
                 const res = await fetch(`/api/public/checkout/plan/${plan_id}`);
@@ -242,18 +267,13 @@
                         document.getElementById('plan-image-container').classList.remove('hidden');
                     }
 
-                    // Render features
+                    // Render description with markdown support
                     if (data.description && data.description.trim()) {
-                        const lines = data.description.split('\n').filter(l => l.trim());
-                        let html = '';
-                        lines.forEach(l => {
-                            html += `<div class="flex items-start gap-2 feature-item" style="padding-left:0;">
-                                <span class="text-emerald-500 font-black shrink-0 mt-0.5">✓</span>
-                                <span>${l.trim()}</span>
-                            </div>`;
-                        });
-                        document.getElementById('plan-details').innerHTML = html;
-                        document.getElementById('plan-details-wrapper').classList.remove('hidden');
+                        const html = renderMarkdown(data.description);
+                        if (html) {
+                            document.getElementById('plan-details').innerHTML = html;
+                            document.getElementById('plan-details-wrapper').classList.remove('hidden');
+                        }
                     }
 
                     // Show duration badge for TG plans

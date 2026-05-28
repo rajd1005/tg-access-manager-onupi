@@ -305,8 +305,16 @@
                             </div>
                         </div>
                         
-                        <label class="text-sm font-bold text-gray-700 block -mb-2">Plan Details (Optional, 1 per line):</label>
-                        <textarea id="b2c-plan-desc" rows="3" placeholder="- Daily updates&#10;- Premium support" class="w-full p-2.5 text-sm border rounded bg-white"></textarea>
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Item Description <span class="text-xs font-normal text-gray-400">(optional, supports formatting)</span>:</label>
+                        <div class="flex items-center gap-1 mb-1.5 bg-white border border-gray-200 rounded-md px-2 py-1.5">
+                            <span class="text-[10px] text-gray-400 font-bold mr-0.5">TEXT:</span>
+                            <button type="button" onclick="applyFormat('b2c-plan-desc', 'bold')" title="Bold" class="w-6 h-6 text-xs font-black flex items-center justify-center rounded hover:bg-gray-100 transition border border-transparent hover:border-gray-200">B</button>
+                            <button type="button" onclick="applyFormat('b2c-plan-desc', 'italic')" title="Italic" class="w-6 h-6 text-xs italic font-semibold flex items-center justify-center rounded hover:bg-gray-100 transition border border-transparent hover:border-gray-200">I</button>
+                            <div class="w-px h-4 bg-gray-200 mx-0.5"></div>
+                            <button type="button" onclick="applyFormat('b2c-plan-desc', 'heading')" title="Add Heading" class="h-6 text-[10px] font-black px-1.5 flex items-center justify-center rounded hover:bg-gray-100 transition border border-transparent hover:border-gray-200">H1</button>
+                            <button type="button" onclick="applyFormat('b2c-plan-desc', 'bullet')" title="Bullet point" class="h-6 text-[10px] font-bold px-1.5 flex items-center justify-center rounded hover:bg-gray-100 transition border border-transparent hover:border-gray-200">• List</button>
+                        </div>
+                        <textarea id="b2c-plan-desc" rows="4" placeholder="- Daily market signals&#10;- Premium support 24/7&#10;## Bonus Included&#10;**100+ lessons** with live calls" class="w-full p-2.5 text-sm border rounded bg-white font-mono text-xs leading-relaxed"></textarea>
 
                         <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">Cover Image (Optional):</label>
                         <div class="space-y-2">
@@ -345,8 +353,16 @@
                         <label class="text-sm font-bold text-gray-700 block -mb-2">Payment Title:</label>
                         <input type="text" id="payment-link-title" placeholder="e.g. eBook Purchase" class="w-full p-2.5 text-sm border rounded bg-white">
                         
-                        <label class="text-sm font-bold text-gray-700 block -mb-2">Item Description:</label>
-                        <textarea id="payment-link-description" rows="3" placeholder="Detailed description of the item or service" class="w-full p-2.5 text-sm border rounded bg-white"></textarea>
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Item Description <span class="text-xs font-normal text-gray-400">(optional, supports formatting)</span>:</label>
+                        <div class="flex items-center gap-1 mb-1.5 bg-white border border-gray-200 rounded-md px-2 py-1.5">
+                            <span class="text-[10px] text-gray-400 font-bold mr-0.5">TEXT:</span>
+                            <button type="button" onclick="applyFormat('payment-link-description', 'bold')" title="Bold" class="w-6 h-6 text-xs font-black flex items-center justify-center rounded hover:bg-gray-100 transition border border-transparent hover:border-gray-200">B</button>
+                            <button type="button" onclick="applyFormat('payment-link-description', 'italic')" title="Italic" class="w-6 h-6 text-xs italic font-semibold flex items-center justify-center rounded hover:bg-gray-100 transition border border-transparent hover:border-gray-200">I</button>
+                            <div class="w-px h-4 bg-gray-200 mx-0.5"></div>
+                            <button type="button" onclick="applyFormat('payment-link-description', 'heading')" title="Add Heading" class="h-6 text-[10px] font-black px-1.5 flex items-center justify-center rounded hover:bg-gray-100 transition border border-transparent hover:border-gray-200">H1</button>
+                            <button type="button" onclick="applyFormat('payment-link-description', 'bullet')" title="Bullet point" class="h-6 text-[10px] font-bold px-1.5 flex items-center justify-center rounded hover:bg-gray-100 transition border border-transparent hover:border-gray-200">• List</button>
+                        </div>
+                        <textarea id="payment-link-description" rows="4" placeholder="Describe what the customer receives..." class="w-full p-2.5 text-sm border rounded bg-white font-mono text-xs leading-relaxed"></textarea>
                         
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -803,7 +819,7 @@
                     document.getElementById('agent-upi-id').value = rawData.user_settings.agent_upi_id || "";
                 }
 
-                populateDropdowns(); applyFilters(); renderStats();
+                populateDropdowns(); applyFilters(); renderStats(); renderB2cUI();
                 if(currentUser && currentUser.role === 'ADMIN') { fetchAgents(); renderAdminChannels(); fetchPlans(); fetchUpis(); renderAdminTxnsUI(); }
             } catch (e) { showToast("⚠️ Error connecting to server"); }
         }
@@ -881,6 +897,45 @@
             document.getElementById('b2c-plan-img-data').value = 'DELETE';
             document.getElementById('b2c-plan-img-file').value = '';
             document.getElementById('b2c-plan-img-preview-box').classList.add('hidden');
+        }
+
+        function applyFormat(textareaId, format) {
+            const ta = document.getElementById(textareaId);
+            if (!ta) return;
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            const val = ta.value;
+            const sel = val.substring(start, end);
+            let insert, cursorOffset, cursorLen;
+            if (format === 'bold') {
+                const inner = sel || 'bold text';
+                insert = `**${inner}**`;
+                cursorOffset = 2; cursorLen = inner.length;
+            } else if (format === 'italic') {
+                const inner = sel || 'italic text';
+                insert = `_${inner}_`;
+                cursorOffset = 1; cursorLen = inner.length;
+            } else if (format === 'heading') {
+                const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+                const prefix = '## ';
+                if (!val.substring(lineStart).startsWith(prefix)) {
+                    ta.value = val.substring(0, lineStart) + prefix + val.substring(lineStart);
+                    ta.selectionStart = ta.selectionEnd = start + prefix.length;
+                }
+                ta.focus(); autoResize(ta); return;
+            } else if (format === 'bullet') {
+                const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+                const prefix = '- ';
+                if (!val.substring(lineStart).startsWith(prefix)) {
+                    ta.value = val.substring(0, lineStart) + prefix + val.substring(lineStart);
+                    ta.selectionStart = ta.selectionEnd = start + prefix.length;
+                }
+                ta.focus(); autoResize(ta); return;
+            } else return;
+            ta.value = val.substring(0, start) + insert + val.substring(end);
+            ta.selectionStart = start + cursorOffset;
+            ta.selectionEnd = start + cursorOffset + cursorLen;
+            ta.focus(); autoResize(ta);
         }
 
         async function saveB2CPlan() {
