@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    {% if seo.site_title %}<title>{{ seo.site_title }} - Checkout</title>{% else %}<title>Complete your Checkout</title>{% endif %}
+    {% if seo.site_tagline %}<meta name="description" content="{{ seo.site_tagline }}">{% endif %}
+    {% if seo.site_icon %}<link rel="icon" href="{{ seo.site_icon }}">{% endif %}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        .spinner { border: 3px solid rgba(0,0,0,0.1); border-left-color: #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800 min-h-screen p-4 flex flex-col items-center justify-center">
+
+    <div id="checkout-box" class="w-full max-w-md bg-white p-6 rounded-3xl shadow-xl border border-gray-100">
+        <div id="init-view" class="space-y-4">
+            <h1 class="text-xl font-black text-gray-900 leading-tight" id="plan-name">Loading Checkout...</h1>
+            <p class="text-sm font-bold text-gray-500" id="channel-name"></p>
+            <div id="plan-details" class="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl border border-gray-100 font-medium hidden"></div>
+            
+            <div class="space-y-3 mt-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Full Name *</label>
+                    <input type="text" id="cus-name" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-blue-500 focus:bg-white transition" placeholder="John Doe">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Mobile Number *</label>
+                    <input type="tel" id="cus-mobile" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-blue-500 focus:bg-white transition" placeholder="+91 9876543210">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Your Email *</label>
+                    <input type="email" id="cus-email" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-blue-500 focus:bg-white transition" placeholder="customer@email.com">
+                </div>
+            </div>
+
+            <div id="flex-amount-container" class="hidden mt-4">
+                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Enter Amount to Pay (₹) *</label>
+                <input type="number" id="cus-flex-amount" oninput="updateFlexPrice()" class="w-full p-3 bg-white border-2 border-blue-400 rounded-xl text-lg font-black text-blue-700 focus:outline-blue-600 transition shadow-sm" placeholder="0.00">
+            </div>
+            
+            <div class="mt-4">
+                <a href="javascript:void(0)" onclick="document.getElementById('coupon-container').classList.toggle('hidden')" class="text-xs text-blue-600 font-bold hover:underline transition">Have a discount code?</a>
+                <div id="coupon-container" class="hidden flex gap-2 mt-2">
+                    <input type="text" id="cus-coupon" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold uppercase focus:outline-blue-500 focus:bg-white transition" placeholder="Code (Optional)">
+                    <button onclick="applyCoupon()" class="bg-gray-800 hover:bg-black px-5 py-2 rounded-xl text-xs font-bold text-white transition shadow-sm">Apply</button>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center py-4 border-y border-gray-100 font-bold text-sm mt-4">
+                <span class="text-gray-500 uppercase tracking-wide">Total to Pay:</span>
+                <span id="final-price" class="text-3xl font-black text-blue-600 font-mono tracking-tight">₹0.00</span>
+            </div>
+
+            <button onclick="initiateCheckout()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition-all active:scale-95 text-sm uppercase tracking-wide">Proceed to Secure Checkout</button>
+        </div>
+
+        <div id="pay-view" class="hidden flex flex-col items-center text-center py-4">
+            <h2 class="font-bold text-gray-800 mb-5 text-xl">Complete Payment</h2>
+            <div id="upi-qrcode" class="p-3 bg-white border-2 border-blue-100 rounded-2xl mb-5 shadow-sm"></div>
+            <div class="bg-blue-50 border border-blue-200 p-5 rounded-2xl w-full">
+                <p class="text-xs text-blue-600 font-bold uppercase tracking-wider mb-2">Scan & Pay Exactly:</p>
+                <p id="pay-amt-txt" class="text-4xl font-black text-blue-700 my-1 font-mono tracking-tighter">₹0.00</p>
+                <p class="text-xs text-red-600 font-bold mt-3 leading-tight">Do NOT round off! Pay the exact amount (including paise) for instant automatic verification.</p>
+            </div>
+            <div class="flex items-center gap-3 mt-6 text-blue-700 bg-blue-100 px-5 py-2.5 rounded-full font-bold text-sm shadow-sm">
+                <div class="spinner"></div> Waiting for automatic confirmation...
+            </div>
+            
+            <details class="w-full mt-8 border-t border-gray-100 pt-5 text-left">
+                <summary class="text-xs font-bold text-gray-500 cursor-pointer text-center outline-none hover:text-gray-700 transition">Payment completed but screen is stuck?</summary>
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-4 shadow-sm">
+                    <label class="block text-xs font-bold text-gray-700 mb-2">Enter 12-Digit UPI Ref. No (UTR):</label>
+                    <input type="text" id="pay-utr" class="w-full p-3 text-sm border border-gray-300 rounded-xl bg-white text-center font-mono tracking-widest font-bold focus:outline-blue-500" placeholder="123456789012" maxlength="12">
+                    <button onclick="verifyPaymentManual()" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-3 rounded-xl shadow mt-3 transition-colors text-xs uppercase tracking-wide">Verify Manually</button>
+                </div>
+            </details>
+            <input type="hidden" id="active-txn-id">
+        </div>
+
+        <div id="success-view" class="hidden text-center space-y-6 py-6">
+            <div class="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-5xl shadow-inner mb-2">✅</div>
+            <h2 class="font-black text-3xl text-gray-900 tracking-tight">Payment Successful!</h2>
+            <p class="text-sm text-gray-500 font-semibold px-2">Your transaction has been securely processed. A receipt has been sent to your email.</p>
+            
+            <div id="tg-link-container" class="flex flex-col gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-200 shadow-sm hidden">
+                <p class="text-xs text-gray-500 font-bold uppercase tracking-wide text-left px-1 mt-1">Your Access Link:</p>
+                <div class="flex items-stretch gap-2">
+                    <div class="flex-1 px-3 py-2.5 font-mono text-xs text-gray-700 break-all text-left flex items-center justify-center overflow-hidden bg-white border border-gray-200 rounded-xl shadow-inner" id="tg-link"></div>
+                    <button onclick="copyToClipboard()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95">Copy</button>
+                </div>
+            </div>
+            
+            <a id="join-btn" href="#" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 text-sm uppercase tracking-wide hidden mt-4">🚀 Access Your Content Now</a>
+            <p id="tg-warning" class="text-xs text-red-500 font-bold uppercase tracking-wider hidden mt-4 bg-red-50 py-2 rounded-lg border border-red-100">Do not share this link. It expires after 1 use.</p>
+        </div>
+    </div>
+
+    <script>
+        const plan_id = "{{plan_id}}";
+        let agent_id = null;
+        let current_price = 0;
+        let discount = 0;
+        let pollInterval = null;
+        let isFlexible = false;
+
+        async function init() {
+            try {
+                const res = await fetch(`/api/public/checkout/plan/${plan_id}`);
+                const data = await res.json();
+                if(data.status === 'success') {
+                    document.getElementById('plan-name').innerText = data.plan_name;
+                    document.getElementById('channel-name').innerText = data.type === 'TG_PLAN' ? `Exclusive Access for: ${data.channel_name}` : `Secure Checkout`;
+                    
+                    if(data.description) {
+                        let dList = '';
+                        let lines = data.description.split('\n');
+                        dList = '<ul class="list-disc list-inside space-y-1">';
+                        lines.forEach(l => { if(l.trim()) dList += `<li>${l.trim()}</li>`; });
+                        dList += '</ul>';
+                        document.getElementById('plan-details').innerHTML = dList;
+                        document.getElementById('plan-details').classList.remove('hidden');
+                    }
+                    
+                    current_price = data.price;
+                    agent_id = data.agent_id;
+                    
+                    if (data.type === 'PAYMENT_LINK' && data.link_type === 'FLEXIBLE') {
+                        isFlexible = true;
+                        document.getElementById('flex-amount-container').classList.remove('hidden');
+                        document.getElementById('final-price').innerText = `₹0.00`;
+                    } else {
+                        updatePrice();
+                    }
+                } else { 
+                    alert("This item is currently unavailable or inactive."); 
+                    document.getElementById('checkout-box').innerHTML = `<h2 class="text-center font-bold text-red-500 py-10 text-xl">Checkout Unavailable</h2>`;
+                }
+            } catch (e) { alert("Server error loading checkout."); }
+        }
+
+        function updateFlexPrice() {
+            if (!isFlexible) return;
+            let val = parseFloat(document.getElementById('cus-flex-amount').value) || 0;
+            current_price = val;
+            updatePrice();
+        }
+
+        function updatePrice() {
+            let final = current_price * (1 - (discount / 100));
+            document.getElementById('final-price').innerText = `₹${final.toFixed(2)}`;
+        }
+
+        async function applyCoupon() {
+            const code = document.getElementById('cus-coupon').value;
+            if (!code) return alert("Enter a coupon code first.");
+            
+            const btn = event.target;
+            btn.innerText = "⏳";
+            
+            try {
+                const res = await fetch('/api/public/checkout/coupon/validate', { method: 'POST', body: JSON.stringify({code: code, agent_id: agent_id, plan_id: plan_id}), headers: {'Content-Type': 'application/json'} });
+                const data = await res.json();
+                if(data.status === 'success') { 
+                    discount = data.discount_pct; 
+                    updatePrice(); 
+                    btn.innerText = "Applied!";
+                    btn.classList.replace('bg-gray-800', 'bg-green-600');
+                    btn.classList.replace('hover:bg-black', 'hover:bg-green-700');
+                }
+                else { 
+                    alert(data.message); 
+                    btn.innerText = "Apply"; 
+                }
+            } catch(e) { alert("Error checking coupon."); btn.innerText = "Apply"; }
+        }
+
+        async function initiateCheckout() {
+            const email = document.getElementById('cus-email').value;
+            const name = document.getElementById('cus-name').value;
+            const mobile = document.getElementById('cus-mobile').value;
+            const code = document.getElementById('cus-coupon').value;
+            const flexAmt = document.getElementById('cus-flex-amount').value || 0;
+
+            if(!email || !name || !mobile) return alert("Name, Email, and Mobile Number are required.");
+            
+            if(isFlexible && flexAmt <= 0) return alert("Please enter a valid amount.");
+
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "Securely Processing...";
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/public/checkout/initiate', { method: 'POST', body: JSON.stringify({
+                    plan_id: plan_id, 
+                    email: email, 
+                    name: name,
+                    mobile: mobile,
+                    coupon_code: code,
+                    flexible_amount: flexAmt
+                }), headers: {'Content-Type': 'application/json'} });
+                
+                const data = await res.json();
+                
+                if(data.status === 'success_bypass') {
+                    if (data.redirect_url && data.redirect_url !== "") {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        showSuccess(data.invite_link);
+                    }
+                } else if (data.status === 'success') {
+                    document.getElementById('init-view').classList.add('hidden');
+                    document.getElementById('pay-view').classList.remove('hidden');
+                    document.getElementById('pay-amt-txt').innerText = `₹${data.amount.toFixed(2)}`;
+                    document.getElementById('active-txn-id').value = data.txn_id;
+                    
+                    new QRCode(document.getElementById('upi-qrcode'), { text: data.upi_string, width: 220, height: 220, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
+                    pollStatus(data.txn_id);
+                } else { 
+                    alert(data.message); 
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                alert("Server error initiating checkout.");
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function pollStatus(txnId) {
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/public/checkout/status/${txnId}`);
+                    const data = await res.json();
+                    if(data.status === 'SUCCESS') {
+                        clearInterval(pollInterval);
+                        if(data.redirect_url && data.redirect_url !== "") {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            showSuccess(data.invite_link);
+                        }
+                    }
+                } catch(e) {}
+            }, 3000);
+        }
+
+        async function verifyPaymentManual() {
+            const txnId = document.getElementById('active-txn-id').value;
+            const utr = document.getElementById('pay-utr').value;
+            if(utr.length < 12) return alert("Please enter a valid 12-Digit UTR Number from your banking app.");
+            
+            const btn = event.target;
+            btn.innerText = "Verifying...";
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/public/checkout/verify_manual', { method: 'POST', body: JSON.stringify({txn_id: txnId, utr: utr}), headers: {'Content-Type': 'application/json'} });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    if(pollInterval) clearInterval(pollInterval);
+                    if(data.redirect_url && data.redirect_url !== "") {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        showSuccess(data.invite_link);
+                    }
+                } else { 
+                    alert(data.message); 
+                    btn.innerText = "Verify Manually";
+                    btn.disabled = false;
+                }
+            } catch(e) {
+                alert("Error verifying payment.");
+                btn.innerText = "Verify Manually";
+                btn.disabled = false;
+            }
+        }
+
+        function showSuccess(linksStr) {
+            document.getElementById('init-view').classList.add('hidden');
+            document.getElementById('pay-view').classList.add('hidden');
+            document.getElementById('success-view').classList.remove('hidden');
+            
+            if (linksStr && linksStr !== "") {
+                const links = linksStr.split('\n');
+                let html = '<p class="text-xs text-gray-500 font-bold uppercase tracking-wide text-left px-1 mt-1">Your Access Link(s):</p>';
+                
+                links.forEach((link) => {
+                    if(!link.trim()) return;
+                    html += `
+                    <div class="flex items-stretch gap-2 mt-2">
+                        <div class="flex-1 px-3 py-2.5 font-mono text-xs text-gray-700 break-all text-left flex items-center justify-center overflow-hidden bg-white border border-gray-200 rounded-xl shadow-inner">${link}</div>
+                        <button onclick="copySpecificLink('${link}', this)" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95">Copy</button>
+                    </div>`;
+                });
+                
+                document.getElementById('tg-link-container').innerHTML = html;
+                document.getElementById('tg-link-container').classList.remove('hidden');
+                document.getElementById('tg-warning').classList.remove('hidden');
+                
+                // Hide the single primary button since we have multiple generated above
+                document.getElementById('join-btn').classList.add('hidden');
+            }
+        }
+
+        function copySpecificLink(text, btnElement) {
+            navigator.clipboard.writeText(text);
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "Copied!";
+            btnElement.classList.add('bg-green-600', 'text-white');
+            btnElement.classList.remove('bg-blue-600');
+            setTimeout(() => { 
+                btnElement.innerText = originalText; 
+                btnElement.classList.remove('bg-green-600');
+                btnElement.classList.add('bg-blue-600');
+            }, 2000);
+        }
+
+        init();
+    </script>
+</body>
+</html>

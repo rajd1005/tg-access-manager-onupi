@@ -1,0 +1,5 @@
+FROM python:3.10-slim
+WORKDIR /app
+COPY main.py .
+RUN pip install "python-telegram-bot[job-queue]" python-dotenv
+CMD ["python", "main.py"]

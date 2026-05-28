@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    {% if seo.site_title %}<title id="doc-title">{{ seo.site_title }}</title>{% else %}<title id="doc-title">TG Manager</title>{% endif %}
+    {% if seo.site_tagline %}<meta name="description" content="{{ seo.site_tagline }}">{% endif %}
+    {% if seo.site_icon %}<link rel="icon" id="doc-favicon" href="{{ seo.site_icon }}">{% endif %}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        body { -webkit-tap-highlight-color: transparent; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        .spinner { border: 3px solid rgba(0,0,0,0.1); border-left-color: #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 h-[100dvh] flex flex-col overflow-hidden relative">
+
+    <header class="bg-white shadow-sm px-4 py-2 flex justify-between items-center z-50 shrink-0">
+        <div class="flex flex-col min-w-0 pr-3">
+            <div class="flex items-center gap-2">
+                <img id="header-icon" src="{% if seo.site_icon %}{{ seo.site_icon }}{% endif %}" class="w-6 h-6 rounded-md {% if not seo.site_icon %}hidden{% endif %} shadow-sm border border-gray-200">
+                <h1 id="header-title" class="text-lg font-extrabold text-blue-600 tracking-tight leading-tight truncate">{% if seo.site_title %}{{ seo.site_title }}{% else %}🚀 TG Manager{% endif %}</h1>
+            </div>
+            <p id="bot-name-display" class="text-xs text-gray-500 font-bold truncate mt-0.5">🤖 Loading Bot...</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="fetchData()" class="bg-blue-50 text-blue-600 p-2 rounded-full border border-blue-100 shadow-sm active:scale-95 transition-transform flex items-center justify-center shrink-0">🔄</button>
+            <button onclick="logout()" class="bg-red-50 text-red-600 p-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-transform flex items-center justify-center shrink-0 text-sm" title="Logout">🚪</button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto px-2 pt-3 pb-24 w-full max-w-2xl lg:max-w-4xl mx-auto">
+        
+        <div id="view-billing" class="view-section hidden space-y-3">
+            <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-xl shadow-sm mb-4">
+                <h2 class="text-orange-800 font-bold text-lg mb-1">Subscription Upgrade</h2>
+                <p id="billing-exp-txt" class="text-sm text-orange-700 font-semibold mb-2">Select a plan below to continue using the platform.</p>
+            </div>
+
+            <div id="billing-plans-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6"></div>
+
+            <div id="billing-pay-zone" class="bg-white p-4 rounded-2xl shadow border border-gray-100 hidden relative">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 class="font-bold text-gray-800" id="pay-plan-title">Selected Plan</h2>
+                    <button onclick="closePayment()" class="text-gray-400 font-bold text-xl leading-none">×</button>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center mb-4 text-center">
+                    <div id="upi-qrcode" class="p-2 bg-white border-2 border-blue-100 rounded-xl mb-3 shadow-sm"></div>
+                    
+                    <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg w-full max-w-[250px]">
+                        <p id="pay-base-txt" class="text-xs text-gray-500 font-bold mb-1">Plan: ₹0 | Gateway Fee: ₹0.00</p>
+                        <p id="pay-amt-txt" class="text-3xl font-black text-blue-600 my-1 font-mono tracking-tight">₹0.00</p>
+                        <p class="text-xs text-red-600 font-bold mt-1 leading-tight">Do NOT round off!<br>Pay exact amount with paise for instant auto-verification.</p>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 mt-4 text-blue-600 bg-blue-50 px-4 py-2 rounded-full font-bold text-sm">
+                        <div class="spinner"></div> Waiting for Payment...
+                    </div>
+                </div>
+
+                <details class="mt-4 border-t pt-3">
+                    <summary class="text-sm font-bold text-gray-500 cursor-pointer text-center outline-none">Payment done but screen stuck?</summary>
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2">
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Enter 12-Digit UPI Ref. No (UTR):</label>
+                        <input type="text" id="pay-utr" class="w-full p-2 text-sm border rounded bg-white text-center font-mono tracking-widest font-bold focus:outline-blue-500" placeholder="123456789012" maxlength="12">
+                        <button onclick="verifyPaymentManual()" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-2 rounded shadow mt-2 transition-colors text-sm">Verify Manually</button>
+                    </div>
+                </details>
+                <input type="hidden" id="active-txn-id">
+            </div>
+        </div>
+
+        <div id="view-invites" class="view-section space-y-3">
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-sm font-bold text-gray-800 flex items-center gap-1">🔗 Create Invites</h2>
+                </div>
+                <select id="sel-channel" class="w-full mb-2 p-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-blue-500 font-semibold"></select>
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                    <div class="flex flex-col"><label class="text-xs font-bold text-gray-500 mb-1 leading-none">Duration</label><select id="sel-duration" class="w-full p-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg"></select></div>
+                    <div class="flex flex-col"><label class="text-xs font-bold text-gray-500 mb-1 leading-none">Quantity</label><input type="number" id="gen-quantity" value="1" min="1" class="w-full p-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg" placeholder="Qty"></div>
+                    <div class="flex flex-col"><label class="text-xs font-bold text-gray-500 mb-1 leading-none">Uses (0=∞)</label><input type="number" id="gen-max-uses" value="1" min="0" class="w-full p-1.5 text-sm bg-green-50 text-green-700 font-bold border border-green-200 rounded-lg" placeholder="Uses (0=∞)"></div>
+                </div>
+                <button onclick="generateLink()" class="w-full bg-green-500 active:bg-green-600 text-white font-bold py-2 rounded-lg text-sm shadow-sm mt-1">Generate & Copy</button>
+            </div>
+
+            <details class="bg-white rounded-2xl shadow-sm border border-gray-100 group">
+                <summary class="font-bold text-sm p-3 flex justify-between items-center cursor-pointer text-blue-600">
+                    <span>➕ Add New Channel</span>
+                    <span class="group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div class="p-3 pt-0 border-t border-gray-50 mt-1 flex flex-col gap-3">
+                    <div class="bg-blue-50 p-2.5 rounded-lg border border-blue-100 text-xs text-blue-900 space-y-1.5 font-medium">
+                        <p class="font-bold text-sm mb-1">📝 Quick Setup Guide:</p>
+                        <ol class="list-decimal list-inside space-y-1.5 ml-1">
+                            <li>Add <b id="bot-instruction-name" class="text-blue-700">this Bot</b> to your Telegram Channel.</li>
+                            <li>Promote the Bot to <b>Administrator</b>.</li>
+                            <li>Find your Channel ID (starts with <code>-100</code>).</li>
+                            <li>Paste the ID below and save.</li>
+                        </ol>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <input type="text" id="chan-id" placeholder="Channel ID (e.g., -100123)" class="w-full p-2 text-sm bg-gray-50 border rounded-lg focus:outline-blue-500">
+                        <button onclick="addChannel()" class="w-full bg-blue-500 active:bg-blue-600 text-white font-bold py-1.5 rounded-lg text-sm shadow-sm transition-colors">Save Channel</button>
+                    </div>
+                </div>
+            </details>
+
+            <div class="flex justify-between items-end mt-2 px-1"><h2 class="text-sm font-bold text-gray-700">Unused Links</h2></div>
+            <div id="links-container" class="space-y-2"></div>
+            <div class="flex justify-between items-center p-2 text-sm font-bold text-gray-500">
+                <button onclick="changePage('links', -1)" id="links-prev" class="px-3 py-1 bg-gray-200 rounded-lg disabled:opacity-30">« Prev</button>
+                <span id="links-page-info"></span>
+                <button onclick="changePage('links', 1)" id="links-next" class="px-3 py-1 bg-gray-200 rounded-lg disabled:opacity-30">Next »</button>
+            </div>
+        </div>
+
+        <div id="view-users" class="view-section hidden space-y-3">
+            <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-40 flex gap-2">
+                <select id="filter-channel" onchange="applyFilters()" class="w-1/3 p-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg font-bold"></select>
+                <input type="text" id="search-box" onkeyup="applyFilters()" placeholder="Search Name, ID..." class="w-2/3 p-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-blue-500">
+            </div>
+            <div id="users-container" class="space-y-2 mt-1"></div>
+            <div class="flex justify-between items-center p-2 text-sm font-bold text-gray-500">
+                <button onclick="changePage('users', -1)" id="users-prev" class="px-3 py-1 bg-gray-200 rounded-lg disabled:opacity-30">« Prev</button>
+                <span id="users-page-info"></span>
+                <button onclick="changePage('users', 1)" id="users-next" class="px-3 py-1 bg-gray-200 rounded-lg disabled:opacity-30">Next »</button>
+            </div>
+        </div>
+
+        <div id="view-dms" class="view-section hidden space-y-3">
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-purple-100 flex flex-col gap-2">
+                <h2 class="text-sm font-bold text-purple-700">💬 DM Configuration</h2>
+                <select id="msg-channel" onchange="loadMessagesIntoForm()" class="w-full p-2 text-sm bg-purple-50 text-purple-900 border border-purple-200 rounded-lg font-bold"></select>
+                <p class="text-xs text-gray-600 px-1 font-medium">Styling rules: Use <code>**bold**</code>, <code>__italic__</code>, <code>[Link Text](http://url.com)</code>. Placeholders: <code>{user_name}</code>, <code>{rejoin_link}</code>.</p>
+                <button onclick="saveMessages()" class="w-full bg-purple-600 active:bg-purple-700 text-white font-bold py-2 rounded-lg text-sm shadow-sm mt-1">💾 Save All Messages</button>
+            </div>
+            <details class="bg-white rounded-xl shadow-sm border border-gray-200 group overflow-hidden" open onclick="setTimeout(() => { autoResizeAll() }, 50)">
+                <summary class="font-bold text-sm p-3 bg-gray-50 flex justify-between items-center cursor-pointer"><span>👋 Welcome Message</span><span class="group-open:rotate-180 transition-transform">▼</span></summary>
+                <div class="p-3 flex flex-col gap-2">
+                    <textarea id="msg-welcome" rows="2" oninput="autoResize(this)" class="w-full p-2 text-sm border rounded-lg bg-gray-50 resize-none overflow-hidden min-h-[60px]" placeholder="**Welcome {user_name}!**"></textarea>
+                    <label class="text-xs font-bold text-gray-700 mt-1">Inline Buttons (Format: Text - URL | Text - URL):</label>
+                    <textarea id="msg-welcome-btns" rows="2" oninput="autoResize(this)" class="w-full p-2 text-sm border rounded-lg bg-gray-50 resize-none overflow-hidden min-h-[60px]" placeholder="Help - https://link.com"></textarea>
+                    
+                    <div class="flex items-center gap-1 mt-1">
+                        <input type="file" id="file-welcome" accept=".jpg,.jpeg,image/jpeg" class="text-xs w-full border rounded-lg p-1 bg-gray-50" onchange="previewLocalImage(this, 'preview-welcome', 'btn-rm-welcome')">
+                        <button onclick="removeImage('welcome')" id="btn-rm-welcome" class="hidden bg-red-100 text-red-600 px-3 py-1.5 rounded text-xs font-bold transition">Delete</button>
+                    </div>
+                    <img id="preview-welcome" class="hidden mt-2 h-24 w-auto rounded-lg border border-gray-200 object-contain bg-white p-1 shadow-sm">
+                </div>
+            </details>
+            <details class="bg-white rounded-xl shadow-sm border border-gray-200 group overflow-hidden" onclick="setTimeout(() => { autoResizeAll() }, 50)">
+                <summary class="font-bold text-sm p-3 bg-gray-50 flex justify-between items-center cursor-pointer"><span>🛑 Farewell Message</span><span class="group-open:rotate-180 transition-transform">▼</span></summary>
+                <div class="p-3 flex flex-col gap-2">
+                    <textarea id="msg-farewell" rows="2" oninput="autoResize(this)" class="w-full p-2 text-sm border rounded-lg bg-gray-50 resize-none overflow-hidden min-h-[60px]" placeholder="**Your time is up!**"></textarea>
+                    <label class="text-xs font-bold text-gray-700 mt-1">Inline Buttons (Format: Text - URL | Text - URL):</label>
+                    <textarea id="msg-farewell-btns" rows="2" oninput="autoResize(this)" class="w-full p-2 text-sm border rounded-lg bg-gray-50 resize-none overflow-hidden min-h-[60px]" placeholder="✅ Rejoin - {rejoin_link}"></textarea>
+                    
+                    <div class="flex items-center gap-1 mt-1">
+                        <input type="file" id="file-farewell" accept=".jpg,.jpeg,image/jpeg" class="text-xs w-full border rounded-lg p-1 bg-gray-50" onchange="previewLocalImage(this, 'preview-farewell', 'btn-rm-farewell')">
+                        <button onclick="removeImage('farewell')" id="btn-rm-farewell" class="hidden bg-red-100 text-red-600 px-3 py-1.5 rounded text-xs font-bold transition">Delete</button>
+                    </div>
+                    <img id="preview-farewell" class="hidden mt-2 h-24 w-auto rounded-lg border border-gray-200 object-contain bg-white p-1 shadow-sm">
+                </div>
+            </details>
+        </div>
+
+        <div id="view-stats" class="view-section hidden space-y-3">
+            <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-40 flex flex-col gap-2">
+                <div class="flex gap-2">
+                    <select id="stat-channel" onchange="state.statsPage=1; renderStats()" class="w-1/2 p-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg font-bold"></select>
+                    <input type="date" id="stat-date" onchange="state.statsPage=1; renderStats()" class="w-1/2 p-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg font-bold text-gray-600">
+                </div>
+                <div class="flex justify-between items-center px-1">
+                    <button onclick="document.getElementById('stat-date').value=''; state.statsPage=1; renderStats();" class="text-xs text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded">Clear Date</button>
+                    <span class="text-xs text-gray-400 italic">Cohort-based tracking</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <div class="bg-blue-50 border border-blue-100 p-2 rounded-xl flex flex-col items-center justify-center text-center"><span class="text-xs font-bold text-blue-600 uppercase">Total Joins</span><span id="stat-total" class="text-lg font-black text-blue-800">0</span></div>
+                <div class="bg-green-50 border border-green-100 p-2 rounded-xl flex flex-col items-center justify-center text-center"><span class="text-xs font-bold text-green-600 uppercase">Active</span><span id="stat-active" class="text-lg font-black text-green-800">0</span></div>
+                <div class="bg-red-50 border border-red-100 p-2 rounded-xl flex flex-col items-center justify-center text-center"><span class="text-xs font-bold text-red-600 uppercase">Left</span><span id="stat-left" class="text-lg font-black text-red-800">0</span></div>
+            </div>
+            <div class="flex justify-between items-end mt-2 px-1"><h2 class="text-sm font-bold text-gray-700">Daily Breakdown</h2></div>
+            <div id="stats-container" class="space-y-2"></div>
+            <div class="flex justify-between items-center p-2 text-sm font-bold text-gray-50 border-t border-gray-100 mt-2">
+                <button onclick="changePage('stats', -1)" id="stats-prev" class="px-3 py-1 bg-gray-200 rounded-lg disabled:opacity-30">« Prev</button>
+                <span id="stats-page-info"></span>
+                <button onclick="changePage('stats', 1)" id="stats-next" class="px-3 py-1 bg-gray-200 rounded-lg disabled:opacity-30">Next »</button>
+            </div>
+        </div>
+
+        <div id="view-settings" class="view-section hidden h-[calc(100vh-140px)] flex flex-col md:flex-row gap-4">
+            
+            <div class="w-full md:w-64 shrink-0 bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-1 overflow-y-auto max-h-[30vh] md:max-h-full" id="settings-sidebar">
+                
+                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1 mt-2 px-2 border-b pb-2">Store & Sales</h2>
+                <button onclick="showSettingsTab('set-b2c-upi', this)" class="text-left px-3 py-2 rounded-lg text-sm font-bold bg-blue-50 text-blue-700 transition">⚙️ Store Setup & Webhook</button>
+                <button onclick="showSettingsTab('set-b2c-plans', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">📦 Telegram Plans</button>
+                <button onclick="showSettingsTab('set-b2c-links', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">🔗 Payment Links</button>
+                <button onclick="showSettingsTab('set-b2c-coupons', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">🎟️ Discount Coupons</button>
+                <button onclick="showSettingsTab('set-b2c-txns', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">📊 Transactions</button>
+
+                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mt-4 mb-1 px-2 border-b pb-2">User Management</h2>
+                <button onclick="showSettingsTab('set-profile', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">👤 User Durations & Alerts</button>
+                
+                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mt-4 mb-1 px-2 border-b pb-2 admin-only hidden">Admin Only</h2>
+                <button onclick="showSettingsTab('set-admin-creds', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition admin-only hidden">🔐 Admin Credentials</button>
+                <button onclick="showSettingsTab('set-bot-token', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition admin-only hidden">🤖 Bot Token Setup</button>
+                <button onclick="showSettingsTab('set-branding', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition admin-only hidden">🎨 Site Branding</button>
+                <button onclick="showSettingsTab('set-email', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition admin-only hidden">📧 SMTP Email Setup</button>
+                <button onclick="showSettingsTab('set-global-bot', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition admin-only hidden">🤖 Global Bot Menu</button>
+                <button onclick="showSettingsTab('set-admin-plans', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition admin-only hidden">💳 B2B Plans & UPI</button>
+                <button onclick="showSettingsTab('set-admin-txns', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition admin-only hidden">💳 B2B Transactions</button>
+                <button onclick="showSettingsTab('set-agent-mgmt', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition admin-only hidden">🛡️ Manage Agents</button>
+                <button onclick="showSettingsTab('set-admin-channels', this)" class="text-left px-3 py-2 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 transition admin-only hidden">🚨 Channels Mgmt</button>
+            </div>
+
+            <div class="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 overflow-y-auto" id="settings-content-area">
+                
+                <div id="set-b2c-upi" class="settings-pane space-y-5">
+                    <h2 class="text-sm font-black text-teal-800 border-b pb-2 mb-3">⚙️ Store Setup & Integrations</h2>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg border border-teal-100">
+                        <label class="text-sm font-bold text-gray-700">Your UPI ID (Where customers pay you):</label>
+                        <div class="flex gap-2 mt-2">
+                            <input type="text" id="agent-upi-id" class="w-full p-2.5 text-sm border rounded bg-white" placeholder="yourname@bank">
+                            <button onclick="saveAgentUpi()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2.5 rounded text-sm transition">Save</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg border border-teal-100">
+                        <h3 class="text-sm font-bold text-teal-800 mb-2">🔌 SMS Webhook Integration</h3>
+                        <p class="text-sm text-gray-600 mb-3 font-medium">To automate payments directly to your UPI ID, configure your Android SMS Forwarder app to POST JSON to this unique URL:</p>
+                        <div class="flex items-center gap-2 bg-white border border-teal-200 p-2.5 rounded-lg">
+                            <code id="agent-webhook-url" class="text-sm text-gray-800 truncate flex-1 font-mono tracking-tight"></code>
+                            <button onclick="copyToClipboard(document.getElementById('agent-webhook-url').innerText)" class="bg-teal-100 hover:bg-teal-200 text-teal-800 px-3 py-1.5 rounded text-xs font-bold shadow-sm transition">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-5">
+                        <h3 class="text-sm font-black text-gray-800 mb-2 border-b pb-2">🔌 WordPress Gravity Forms Integration (Free Access / Lead Gen)</h3>
+                        <p class="text-sm text-gray-600 mb-4 font-medium leading-relaxed">Automate giving free access (e.g., for trials or lead magnets) directly from your WordPress site. This webhook automatically processes a 100% free order and emails the Telegram link instantly.</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">1. Your Secret API Key (Required for Security)</label>
+                                <div class="flex items-center gap-2 bg-white border border-gray-300 p-2.5 rounded-lg shadow-inner">
+                                    <code id="agent-api-key" class="text-sm text-gray-800 truncate flex-1 font-mono font-bold tracking-tight"></code>
+                                    <button onclick="copyToClipboard(document.getElementById('agent-api-key').innerText)" class="bg-gray-800 hover:bg-black text-white px-4 py-1.5 rounded text-xs font-bold shadow-sm transition">Copy</button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg flex flex-col">
+                                <label class="text-xs font-bold text-blue-800 uppercase tracking-wider mb-1 block">2. Webhook Target URL</label>
+                                <code id="wh-free-url" class="text-sm text-blue-900 break-all font-mono mb-2 flex-1 font-bold"></code>
+                                <button onclick="copyToClipboard(document.getElementById('wh-free-url').innerText)" class="bg-blue-200 hover:bg-blue-300 text-blue-800 px-3 py-1.5 text-xs rounded font-bold transition self-start mt-auto shadow-sm">Copy URL</button>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mt-4">
+                                <h4 class="text-sm font-bold text-gray-800 mb-2">Step-by-Step Setup Guide:</h4>
+                                <ol class="list-decimal list-inside space-y-2 text-sm text-gray-600 font-medium">
+                                    <li>Install and activate the <b>Webhooks Add-On</b> in Gravity Forms.</li>
+                                    <li>In your form, add fields for Name, Email, and Phone.</li>
+                                    <li>Add a <b>Hidden Field</b>. Set its default value to your target Plan ID (e.g., <code>PLN12345</code>).</li>
+                                    <li>Go to Settings > Webhooks and create a new feed.</li>
+                                    <li>Set Request URL to the <b>Webhook Target URL</b> above.</li>
+                                    <li>Set Request Method to <b>POST</b> and Format to <b>JSON</b>.</li>
+                                    <li>Under Request Headers, add Name: <code>X-API-Key</code> and Value: <b>(Your Secret API Key)</b>.</li>
+                                    <li>Under Request Body, choose <b>Select Fields</b> and map the keys exactly as: <code>name</code>, <code>email</code>, <code>mobile</code>, <code>plan_id</code>.</li>
+                                    <li><b class="text-red-600">Crucial:</b> In your TG Manager Dashboard, edit the specific Plan/Link and change "External Webhook Access" to <b>Allow Free Webhook Access</b>.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="set-b2c-plans" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-teal-800 border-b pb-2 mb-3">📦 Telegram Subscription Plans</h2>
+                    <p class="text-sm text-gray-600 mb-3 font-medium">Sell direct access to your Telegram channels. The bot will automatically add/kick users based on their active duration.</p>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4 space-y-3">
+                        <h3 class="text-sm font-bold text-gray-700 border-b pb-2" id="b2c-plan-editor-title">Add New Plan</h3>
+                        <input type="hidden" id="b2c-plan-id">
+                        
+                        <label class="text-sm font-bold text-gray-700 block -mb-2">Plan Name:</label>
+                        <input type="text" id="b2c-plan-name" placeholder="e.g. VIP Signals" class="w-full p-2.5 text-sm border rounded bg-white">
+                        
+                        <label class="text-sm font-bold text-gray-700 block -mb-2">Target Telegram Channel(s): <span class="text-xs font-normal text-gray-500">(Hold Ctrl/Cmd to select multiple)</span></label>
+                        <select id="b2c-plan-channel" multiple class="w-full p-2.5 text-sm border rounded bg-white font-bold min-h-[90px]"></select>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Price (₹):</label>
+                                <input type="number" id="b2c-plan-price" placeholder="Amount" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Duration (0 = Lifetime):</label>
+                                <input type="number" id="b2c-plan-days" placeholder="Days" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                        </div>
+                        
+                        <label class="text-sm font-bold text-gray-700 block -mb-2">Plan Details (Optional, 1 per line):</label>
+                        <textarea id="b2c-plan-desc" rows="3" placeholder="- Daily updates&#10;- Premium support" class="w-full p-2.5 text-sm border rounded bg-white"></textarea>
+                        
+                        <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">External Webhook Access:</label>
+                        <select id="b2c-plan-free-auth" class="w-full p-2.5 text-sm border rounded bg-white font-bold mb-2">
+                            <option value="0">Disabled (Payment Required)</option>
+                            <option value="1">Allow Free Webhook Access (Lead Gen)</option>
+                        </select>
+                        
+                        <label class="text-sm font-bold text-gray-700 block -mb-2">Notification Emails (Comma separated):</label>
+                        <input type="text" id="b2c-plan-extra-emails" placeholder="e.g. partner@site.com, admin@site.com" class="w-full p-2.5 text-sm border rounded bg-white">
+                        
+                        <button onclick="saveB2CPlan()" id="b2c-plan-save-btn" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded text-sm transition mt-3">➕ Add Customer Plan</button>
+                    </div>
+                    
+                    <h3 class="text-sm font-black text-gray-500 uppercase tracking-wide mb-2">Your Telegram Plans</h3>
+                    <div id="b2c-plans-container" class="space-y-3 mb-4"></div>
+                </div>
+
+                <div id="set-b2c-links" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-teal-800 border-b pb-2 mb-3">🔗 Standalone Payment Links</h2>
+                    <p class="text-sm text-gray-600 mb-3 font-medium">Create payment links for custom items, donations, or external resources. No Telegram integration required.</p>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4 space-y-3">
+                        <h3 class="text-sm font-bold text-gray-700 border-b pb-2" id="payment-link-editor-title">Create New Link</h3>
+                        <input type="hidden" id="payment-link-id">
+                        
+                        <label class="text-sm font-bold text-gray-700 block -mb-2">Payment Title:</label>
+                        <input type="text" id="payment-link-title" placeholder="e.g. eBook Purchase" class="w-full p-2.5 text-sm border rounded bg-white">
+                        
+                        <label class="text-sm font-bold text-gray-700 block -mb-2">Item Description:</label>
+                        <textarea id="payment-link-description" rows="3" placeholder="Detailed description of the item or service" class="w-full p-2.5 text-sm border rounded bg-white"></textarea>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Pricing Model:</label>
+                                <select id="payment-link-type" class="w-full p-2.5 text-sm border rounded bg-white font-bold" onchange="togglePaymentLinkType()">
+                                    <option value="FIXED">Fixed Amount</option>
+                                    <option value="FLEXIBLE">Flexible (User Enters)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Amount (₹):</label>
+                                <input type="number" id="payment-link-amount" placeholder="Amount ₹" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Success Redirect URL (Optional):</label>
+                                <input type="url" id="payment-link-redirect" placeholder="https://..." class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Specific Discount Code (Optional):</label>
+                                <input type="text" id="payment-link-discount" placeholder="Code" class="w-full p-2.5 text-sm border rounded bg-white font-bold uppercase">
+                            </div>
+                        </div>
+
+                        <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">External Webhook Access:</label>
+                        <select id="payment-link-free-auth" class="w-full p-2.5 text-sm border rounded bg-white font-bold mb-2">
+                            <option value="0">Disabled (Payment Required)</option>
+                            <option value="1">Allow Free Webhook Access (Lead Gen)</option>
+                        </select>
+
+                        <label class="text-sm font-bold text-gray-700 block -mb-2">Notification Emails (Comma separated):</label>
+                        <input type="text" id="payment-link-extra-emails" placeholder="e.g. partner@site.com" class="w-full p-2.5 text-sm border rounded bg-white">
+
+                        <button onclick="savePaymentLink()" id="payment-link-save-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded text-sm transition mt-3">➕ Generate Payment Link</button>
+                    </div>
+                    
+                    <h3 class="text-sm font-black text-gray-500 uppercase tracking-wide mb-2">Your Payment Links</h3>
+                    <div id="payment-links-container" class="space-y-3 mb-4"></div>
+                </div>
+
+                <div id="set-b2c-coupons" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-teal-800 border-b pb-2 mb-3">🎟️ Global Discount Coupons</h2>
+                    <p class="text-sm text-gray-600 mb-3 font-medium">Create discount codes that customers can apply during checkout for your plans and links.</p>
+
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4 space-y-3">
+                        <h3 class="text-sm font-bold text-gray-700 border-b pb-2">Create Coupon</h3>
+                        <input type="hidden" id="coupon-id">
+                        
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Coupon Code:</label>
+                                <input type="text" id="coupon-code" placeholder="e.g. FREE100" class="w-full p-2.5 text-sm border rounded bg-white font-bold uppercase">
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Discount %:</label>
+                                <input type="number" id="coupon-pct" placeholder="1-100" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Max Uses (0=∞):</label>
+                                <input type="number" id="coupon-uses" placeholder="Uses" value="0" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Target Item:</label>
+                                <select id="coupon-plan-id" class="w-full p-2.5 text-sm border rounded bg-white font-semibold">
+                                    <option value="">All Items</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="saveCoupon()" id="coupon-save-btn" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-2.5 rounded text-sm transition mt-2">➕ Add Coupon</button>
+                    </div>
+                    
+                    <h3 class="text-sm font-black text-gray-500 uppercase tracking-wide mb-2">Active Coupons</h3>
+                    <div id="b2c-coupons-container" class="space-y-2 mb-4"></div>
+                </div>
+
+                <div id="set-b2c-txns" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-teal-800 border-b pb-2 mb-3">📊 Customer Transactions</h2>
+                    <p class="text-sm text-gray-600 mb-3 font-medium">Review your customer payments, verify manual UTR submissions, and override failures.</p>
+                    
+                    <div id="b2c-total-income-box" class="bg-green-50 p-4 rounded-xl border border-green-200 mb-4 flex justify-between items-center">
+                        <span class="text-sm font-bold text-green-800 uppercase tracking-wide">Total Store Income:</span>
+                        <span id="b2c-total-income" class="text-2xl font-black text-green-700 tracking-tight font-mono">₹0.00</span>
+                    </div>
+
+                    <input type="text" id="search-b2c-txns" onkeyup="state.b2cTxnsPage=1; renderB2cUI()" placeholder="Search transactions (Name, Email, UTR, ID...)" class="w-full p-2.5 mb-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-teal-500 font-medium shadow-sm">
+                    <div class="mt-2" id="b2c-txns-container"></div>
+                    
+                    <div class="flex justify-between items-center py-3 mt-4 text-sm font-bold text-gray-500 border-t border-gray-100 hidden" id="b2c-txns-pagination">
+                        <button onclick="changeB2cTxnPage(-1)" id="b2c-txns-prev" class="px-4 py-2 bg-white rounded-lg border shadow-sm disabled:opacity-30">« Prev</button>
+                        <span id="b2c-txns-page-info"></span>
+                        <button onclick="changeB2cTxnPage(1)" id="b2c-txns-next" class="px-4 py-2 bg-white rounded-lg border shadow-sm disabled:opacity-30">Next »</button>
+                    </div>
+                </div>
+
+                <div id="set-profile" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-blue-800 border-b pb-2 mb-3">👤 Profile & Durations</h2>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Invite Durations (Comma separated days):</label>
+                        <input type="text" id="user-invite-durations" class="w-full p-2.5 text-sm border border-gray-300 rounded-lg bg-white shadow-sm mb-4" placeholder="1, 7, 30, lifetime">
+                        
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Extend Durations (Comma separated days):</label>
+                        <input type="text" id="user-extend-durations" class="w-full p-2.5 text-sm border border-gray-300 rounded-lg bg-white shadow-sm mb-5" placeholder="7, 30, lifetime">
+                        
+                        <button onclick="saveUserDurations()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition">💾 Save Durations</button>
+                    </div>
+
+                    <h2 class="text-sm font-black text-purple-800 border-b pb-2 mb-3 mt-8">📧 Email Notifications</h2>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
+                        <div>
+                            <label class="text-sm font-bold text-gray-700 block mb-1">When a New User Joins (Auto Email):</label>
+                            <select id="user-notify-join" class="w-full p-2.5 text-sm border rounded-lg bg-white shadow-sm font-bold text-gray-700"><option value="true">Enabled (ON)</option><option value="false">Disabled (OFF)</option></select>
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-gray-700 block mb-1">When a User Leaves or Expires:</label>
+                            <select id="user-notify-leave" class="w-full p-2.5 text-sm border rounded-lg bg-white shadow-sm font-bold text-gray-700"><option value="true">Enabled (ON)</option><option value="false">Disabled (OFF)</option></select>
+                        </div>
+                        <button onclick="saveUserNotifications()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition mt-3">💾 Save Notifications</button>
+                    </div>
+                </div>
+
+                <div id="set-admin-creds" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-gray-800 border-b pb-2 mb-3">🔐 Admin Account Configuration</h2>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Admin Email Address:</label>
+                        <input type="email" id="admin-cred-email" placeholder="admin@domain.com" class="w-full p-2.5 mb-4 text-sm border rounded-lg bg-white shadow-sm">
+                        
+                        <label class="text-sm font-bold text-gray-700 block mb-1">New Password (leave blank to keep current):</label>
+                        <input type="password" id="admin-cred-pass" placeholder="Enter new password" class="w-full p-2.5 mb-5 text-sm border rounded-lg bg-white shadow-sm">
+                        
+                        <button onclick="saveAdminCreds()" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition">💾 Update Admin Credentials</button>
+                    </div>
+                </div>
+
+                <div id="set-bot-token" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-blue-800 border-b pb-2 mb-3">🤖 Bot Token Integration</h2>
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                        <p class="text-sm text-blue-800 mb-4 font-medium">Update your Telegram Bot Token. <b>Important:</b> After saving, click the restart button to apply the changes to the background Telegram listener.</p>
+                        <label class="text-sm font-bold text-blue-900 block mb-1">Telegram Bot Token:</label>
+                        <input type="text" id="admin-bot-token" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" class="w-full p-2.5 mb-4 text-sm border border-blue-300 rounded-lg bg-white shadow-sm font-mono tracking-tight">
+                        
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <button onclick="saveBotToken()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition">💾 Save Token</button>
+                            <button onclick="restartBot()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition">🔄 Restart Bot App</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="set-branding" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-gray-800 border-b pb-2 mb-3">🎨 Platform Branding</h2>
+                    <p class="text-sm text-gray-600 mb-4 font-medium">Update the public-facing title and SEO settings for your dashboard and checkout pages.</p>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Site Title:</label>
+                        <input type="text" id="site-title" placeholder="e.g. TG Manager" class="w-full p-2.5 mb-4 text-sm border rounded-lg bg-white shadow-sm">
+                        
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Site Tagline (Used for SEO Description):</label>
+                        <input type="text" id="site-tagline" placeholder="e.g. Best Telegram Subscription Platform" class="w-full p-2.5 mb-4 text-sm border rounded-lg bg-white shadow-sm">
+                        
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Site Icon (Favicon for browser tabs, 512x512 square):</label>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="file" id="site-icon-file" accept="image/png, image/jpeg" class="w-full p-2.5 text-sm border rounded-lg bg-white shadow-sm bg-clip-padding" onchange="previewLocalImage(this, 'preview-site-icon', 'btn-rm-site-icon')">
+                            <button type="button" onclick="removeSiteIcon()" id="btn-rm-site-icon" class="hidden bg-red-100 text-red-600 px-4 py-2.5 rounded-lg text-sm font-bold shadow-sm whitespace-nowrap transition hover:bg-red-200">Remove</button>
+                        </div>
+                        <img id="preview-site-icon" class="hidden mb-5 h-16 w-16 rounded-xl border border-gray-200 object-cover bg-white p-1 shadow-sm">
+                        
+                        <button onclick="saveBranding()" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition">💾 Save Branding</button>
+                    </div>
+                </div>
+
+                <div id="set-email" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-indigo-800 border-b pb-2 mb-3">📧 SMTP Email Configuration</h2>
+                    <p class="text-sm text-gray-600 mb-3 font-medium">Configure how the platform sends automated emails to agents and customers.</p>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <label class="text-sm font-bold text-gray-700 uppercase">SMTP Host</label>
+                        <input type="text" id="smtp-host" placeholder="e.g. smtp.gmail.com" class="w-full mb-4 p-2.5 text-sm border rounded-lg bg-white">
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 uppercase">SMTP Port</label>
+                                <input type="number" id="smtp-port" placeholder="e.g. 465 or 587" class="w-full p-2.5 text-sm border rounded-lg bg-white">
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 uppercase">Security</label>
+                                <select id="smtp-secure" class="w-full p-2.5 text-sm border rounded-lg bg-white font-bold"><option value="true">SSL (True)</option><option value="false">StartTLS/None</option></select>
+                            </div>
+                        </div>
+
+                        <label class="text-sm font-bold text-gray-700 uppercase">SMTP Username</label>
+                        <input type="email" id="smtp-user" placeholder="Email Address" class="w-full mb-4 p-2.5 text-sm border rounded-lg bg-white">
+                        
+                        <label class="text-sm font-bold text-gray-700 uppercase">SMTP Password</label>
+                        <input type="password" id="smtp-pass" placeholder="App Password" class="w-full mb-5 p-2.5 text-sm border rounded-lg bg-white">
+                        
+                        <button onclick="saveSmtp()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition">💾 Save SMTP Settings</button>
+                    </div>
+
+                    <h2 class="text-sm font-black text-yellow-800 border-b pb-2 mb-3 mt-8">🔌 B2B Admin Webhook URL</h2>
+                    <p class="text-sm text-gray-600 mb-2 font-semibold">For automated Admin payments via SMS forwarder.</p>
+                    <div class="flex items-center gap-2 bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                        <code id="admin-webhook-url-display" class="text-sm text-gray-800 truncate flex-1 font-mono tracking-tight"></code>
+                        <button onclick="copyToClipboard(document.getElementById('admin-webhook-url-display').innerText)" class="bg-yellow-200 hover:bg-yellow-300 text-yellow-800 px-4 py-2 rounded text-sm font-bold shadow-sm transition">Copy</button>
+                    </div>
+                </div>
+
+                <div id="set-global-bot" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-indigo-800 border-b pb-2 mb-3">🤖 Global Bot Main Menu (/start)</h2>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Message Body:</label>
+                        <textarea id="global-menu-msg" rows="4" class="w-full p-2.5 text-sm border rounded-lg bg-white shadow-sm mb-2"></textarea>
+                        <p class="text-xs text-gray-600 mb-4 px-1 font-medium">Styling rules: Use <code>**bold**</code>, <code>__italic__</code>, <code>[Link Text](http://url.com)</code>. Placeholder: <code>{user_name}</code>.</p>
+                        
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Inline Buttons (Format: Text - URL | Text - URL):</label>
+                        <textarea id="global-menu-btns" rows="2" class="w-full p-2.5 text-sm border rounded-lg bg-white shadow-sm mb-5" placeholder="Website - https://google.com | Support - https://t.me/support"></textarea>
+                        
+                        <button onclick="saveBotMenu()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition">💾 Save Menu</button>
+                    </div>
+                </div>
+
+                <div id="set-admin-plans" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-green-800 border-b pb-2 mb-3">💳 Payment Gateways & UPI</h2>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6">
+                        <div class="flex items-center gap-2 mb-3">
+                            <input type="text" id="upi-add-id" class="w-full p-2.5 text-sm border border-gray-300 rounded-lg bg-white font-semibold" placeholder="Enter UPI ID (e.g. name@bank)">
+                            <button onclick="addUpi()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm shadow-sm whitespace-nowrap transition">Add ID</button>
+                        </div>
+                        <div id="admin-upis-container" class="space-y-1 mb-4 mt-2"></div>
+                        <div class="border-t border-gray-200 pt-4 flex justify-between items-center">
+                            <label class="text-sm font-bold text-gray-700">Randomize UPI Selection?</label>
+                            <select id="upi-randomize" class="p-2 text-sm border rounded-lg bg-white font-bold" onchange="saveSystemConfig()">
+                                <option value="false">No (Use Primary)</option>
+                                <option value="true">Yes (Random)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h2 class="text-sm font-black text-green-800 border-b pb-2 mb-3 mt-8">🏷️ Agent Subscription Plans (B2B)</h2>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4 space-y-3">
+                        <h3 class="text-sm font-bold text-gray-700 border-b pb-2" id="plan-editor-title">Add New Plan</h3>
+                        <input type="hidden" id="plan-add-id">
+                        <div class="grid grid-cols-3 gap-3">
+                            <input type="text" id="plan-add-name" placeholder="Name" class="p-2.5 text-sm border rounded bg-white">
+                            <input type="number" id="plan-add-price" placeholder="Price ₹" class="p-2.5 text-sm border rounded bg-white">
+                            <input type="text" id="plan-add-days" placeholder="Days or 'lifetime'" class="p-2.5 text-sm border rounded bg-white">
+                        </div>
+                        <textarea id="plan-add-details" rows="3" class="w-full p-2.5 text-sm border rounded bg-white" placeholder="Details (1 per line)"></textarea>
+                        <button onclick="savePlan()" id="plan-save-btn" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-2.5 rounded-lg text-sm transition mt-1">➕ Add Agent Plan</button>
+                    </div>
+                    <div id="admin-plans-container" class="space-y-2"></div>
+                </div>
+
+                <div id="set-admin-txns" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-indigo-800 border-b pb-2 mb-3">💳 B2B Admin Transactions</h2>
+                    
+                    <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 mb-4 flex justify-between items-center">
+                        <span class="text-sm font-bold text-indigo-800 uppercase tracking-wide">Total B2B Income:</span>
+                        <span id="admin-total-income" class="text-2xl font-black text-indigo-700 tracking-tight font-mono">₹0.00</span>
+                    </div>
+
+                    <input type="text" id="search-admin-txns" onkeyup="state.adminTxnsPage=1; renderAdminTxnsUI()" placeholder="Search B2B transactions (Email, UTR, ID...)" class="w-full p-2.5 mb-2 text-sm bg-white border border-indigo-200 rounded-lg focus:outline-indigo-500 font-medium shadow-sm">
+                    <div id="admin-txns-container" class="space-y-3 mt-2"></div>
+                    
+                    <div class="flex justify-between items-center py-3 mt-4 text-sm font-bold text-gray-500 border-t border-gray-100 hidden" id="admin-txns-pagination">
+                        <button onclick="changeAdminTxnPage(-1)" id="admin-txns-prev" class="px-4 py-2 bg-white rounded-lg border shadow-sm disabled:opacity-30">« Prev</button>
+                        <span id="admin-txns-page-info"></span>
+                        <button onclick="changeAdminTxnPage(1)" id="admin-txns-next" class="px-4 py-2 bg-white rounded-lg border shadow-sm disabled:opacity-30">Next »</button>
+                    </div>
+                </div>
+
+                <div id="set-agent-mgmt" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-purple-800 border-b pb-2 mb-3">🛡️ Agent Registration Settings</h2>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-8 space-y-4">
+                        <div>
+                            <label class="text-sm font-bold text-gray-700 block mb-1">Enable Public Registration?</label>
+                            <select id="reg-enable" class="w-full p-2.5 text-sm bg-white border rounded-lg font-bold"><option value="true">Open</option><option value="false">Closed</option></select>
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-gray-700 block mb-1">Auto Trial Days for New Agents (0 to disable):</label>
+                            <input type="number" id="reg-trial-days" min="0" class="w-full p-2.5 text-sm border rounded-lg bg-white">
+                        </div>
+                        <button onclick="saveSystemConfig()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-lg text-sm transition mt-2">💾 Save Registration Config</button>
+                    </div>
+
+                    <h2 class="text-sm font-black text-gray-800 border-b pb-2 mb-3">Current Team Directory</h2>
+                    <input type="text" id="search-agents" onkeyup="renderAgents()" placeholder="Search Agents (Email, Role...)" class="w-full p-2.5 mb-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-purple-500 font-medium shadow-sm">
+                    <div id="agents-container" class="space-y-3 mt-2"></div>
+                </div>
+
+                <div id="set-admin-channels" class="settings-pane space-y-5 hidden">
+                    <h2 class="text-sm font-black text-red-800 border-b pb-2 mb-3">🚨 Global Channels Danger Zone</h2>
+                    <p class="text-sm text-gray-600 mb-4 px-1 font-medium bg-red-50 p-3 rounded border border-red-200 text-red-800">Warning: Deleting or clearing channels here will irreversibly wipe customer access data across all agents.</p>
+                    <div id="admin-channels-container" class="space-y-3"></div>
+                </div>
+                
+            </div>
+        </div>
+
+    </main>
+
+    <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center z-50 h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe">
+        <button onclick="switchTab('invites')" id="tab-invites" class="flex-1 flex flex-col items-center justify-center h-full text-blue-600 font-bold transition-colors"><span class="text-xl mb-0.5">🔗</span><span class="text-[10px] uppercase tracking-wide">Invites</span></button>
+        <button onclick="switchTab('users')" id="tab-users" class="flex-1 flex flex-col items-center justify-center h-full text-gray-400 hover:text-gray-600 font-semibold transition-colors"><span class="text-xl mb-0.5">👥</span><span class="text-[10px] uppercase tracking-wide">Users</span></button>
+        <button onclick="switchTab('dms')" id="tab-dms" class="flex-1 flex flex-col items-center justify-center h-full text-gray-400 hover:text-gray-600 font-semibold transition-colors"><span class="text-xl mb-0.5">💬</span><span class="text-[10px] uppercase tracking-wide">Auto-DM</span></button>
+        <button onclick="switchTab('stats')" id="tab-stats" class="flex-1 flex flex-col items-center justify-center h-full text-gray-400 hover:text-gray-600 font-semibold transition-colors"><span class="text-xl mb-0.5">📈</span><span class="text-[10px] uppercase tracking-wide">Stats</span></button>
+        <button onclick="switchTab('settings')" id="tab-settings" class="flex-1 flex flex-col items-center justify-center h-full text-gray-400 hover:text-gray-600 font-semibold transition-colors"><span class="text-xl mb-0.5">⚙️</span><span class="text-[10px] uppercase tracking-wide">Settings</span></button>
+    </nav>
+
+    <div id="toast" class="fixed top-14 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white font-bold text-sm px-4 py-2 rounded-full shadow-lg transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 whitespace-nowrap"></div>
+
+    <script>
+        let currentUser = null;
+        let qrCodeObj = null;
+        let pollInterval = null;
+        let adminAgentList = [];
+        let pendingSiteIconDelete = false;
+        let pendingDeletions = { welcome: false, farewell: false };
+
+        function showToast(msg) { const t = document.getElementById('toast'); t.innerHTML = msg; t.classList.remove('opacity-0', '-translate-y-4'); setTimeout(() => t.classList.add('opacity-0', '-translate-y-4'), 2500); }
+        function copyToClipboard(text, silent = false) { navigator.clipboard.writeText(text); if(!silent) showToast("📋 Copied!"); }
+
+        function showSettingsTab(tabId, btnContext) {
+            document.querySelectorAll('.settings-pane').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(tabId);
+            if(target) target.classList.remove('hidden');
+
+            document.querySelectorAll('#settings-sidebar button').forEach(btn => {
+                btn.classList.remove('bg-blue-50', 'text-blue-700', 'font-bold');
+                btn.classList.add('text-gray-600', 'font-semibold');
+            });
+            
+            if(btnContext) {
+                btnContext.classList.add('bg-blue-50', 'text-blue-700', 'font-bold');
+                btnContext.classList.remove('text-gray-600', 'font-semibold');
+            } else {
+                const fallbackBtn = document.querySelector(`#settings-sidebar button[onclick*="${tabId}"]`);
+                if(fallbackBtn) {
+                    fallbackBtn.classList.add('bg-blue-50', 'text-blue-700', 'font-bold');
+                    fallbackBtn.classList.remove('text-gray-600', 'font-semibold');
+                }
+            }
+        }
+
+        function switchTab(tabId) {
+            if(currentUser && currentUser.is_expired && tabId !== 'billing') { return switchTab('billing'); }
+
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            
+            const tabs = ['invites', 'users', 'dms', 'stats', 'settings'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if(!btn) return;
+                if(t === tabId) { btn.classList.replace('text-gray-400', 'text-blue-600'); btn.classList.replace('font-semibold', 'font-bold'); }
+                else { btn.classList.replace('text-blue-600', 'text-gray-400'); btn.classList.replace('font-bold', 'font-semibold'); }
+            });
+            autoResizeAll(); 
+            if(tabId === 'stats') renderStats();
+            if(tabId === 'settings') {
+                if(currentUser && currentUser.role === 'ADMIN') { 
+                    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+                    fetchAgents(); renderAdminChannels(); fetchPlans(); fetchUpis(); renderAdminTxnsUI();
+                    document.getElementById('admin-webhook-url-display').innerText = window.location.origin + '/api/webhook/sms/admin?key=' + (rawData.user_settings.webhook_key || ''); 
+                }
+                if(currentUser) {
+                    document.getElementById('agent-webhook-url').innerText = window.location.origin + '/api/webhook/sms/' + currentUser.id + '?key=' + (rawData.user_settings.webhook_key || '');
+                    document.getElementById('admin-cred-email').value = currentUser.email;
+                    document.getElementById('agent-api-key').innerText = rawData.user_settings.webhook_key || 'No Key Generated';
+                    document.getElementById('wh-free-url').innerText = window.location.origin + '/api/webhook/external_free';
+                }
+                renderB2cUI();
+                showSettingsTab('set-b2c-upi');
+            }
+        }
+        
+        function autoResize(el) { if (!el) return; el.style.height = 'auto'; el.style.height = Math.max(el.scrollHeight, 60) + 'px'; }
+        function autoResizeAll() { ['msg-welcome', 'msg-welcome-btns', 'msg-farewell', 'msg-farewell-btns', 'global-menu-msg', 'global-menu-btns', 'b2c-plan-desc', 'payment-link-description'].forEach(id => { const el = document.getElementById(id); if (el) autoResize(el); }); }
+
+        let rawData = { links: [], users: [], channels: [], settings: {}, user_settings: {}, plans: [], b2c_plans: [], payment_links: [], coupons: [], b2c_txns: [], admin_txns: [] };
+        let filteredLinks = [], filteredUsers = [];
+        let state = { linksPage: 1, usersPage: 1, statsPage: 1, perPage: 10, b2cTxnsPage: 1, b2cTxnsPerPage: 10, adminTxnsPage: 1, adminTxnsPerPage: 10 };
+
+        async function verifyUser() {
+            try {
+                const res = await fetch('/api/me');
+                if (res.status === 401) { window.location.href = "/login"; return; }
+                const data = await res.json();
+                currentUser = data.user;
+            } catch (e) { window.location.href = "/login"; }
+        }
+
+        async function logout() { await fetch('/api/auth/logout', { method: 'POST' }); window.location.href = "/login"; }
+
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/data');
+                if (res.status === 401) return window.location.href = "/login";
+                rawData = await res.json();
+
+                if(rawData.user_settings.is_expired) {
+                    currentUser.is_expired = true;
+                    document.getElementById('billing-exp-txt').innerText = `Your subscription expired on ${rawData.user_settings.expiry_date}. Select a plan below to renew and unlock your dashboard.`;
+                    switchTab('billing');
+                    renderBillingPlans();
+                    return; 
+                } else if (currentUser && currentUser.role === 'AGENT') {
+                    const topbar = document.getElementById('bot-name-display');
+                    let expShow = rawData.user_settings.expiry_date === 'lifetime' ? 'Life' : rawData.user_settings.expiry_date;
+                    topbar.innerHTML = `🤖 Bot Active | Exp: <b class="text-orange-500">${expShow}</b> <button onclick="openBilling()" class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded border border-orange-200 shadow ml-1">Renew</button>`;
+                }
+
+                if(rawData.settings && currentUser && currentUser.role === 'ADMIN') {
+                    document.getElementById('global-menu-msg').value = rawData.settings.menu_message || "";
+                    document.getElementById('global-menu-btns').value = rawData.settings.menu_buttons || "";
+                    document.getElementById('reg-enable').value = rawData.settings.registration_enabled || "false";
+                    document.getElementById('reg-trial-days').value = rawData.settings.trial_days || "3";
+                    document.getElementById('upi-randomize').value = rawData.settings.upi_randomize || "false";
+                    
+                    document.getElementById('smtp-host').value = rawData.settings.smtp_host || "";
+                    document.getElementById('smtp-port').value = rawData.settings.smtp_port || "465";
+                    document.getElementById('smtp-secure').value = rawData.settings.smtp_secure || "true";
+                    document.getElementById('smtp-user').value = rawData.settings.smtp_user || "";
+                    document.getElementById('smtp-pass').value = rawData.settings.smtp_pass || "";
+                    
+                    document.getElementById('site-title').value = rawData.settings.site_title || "";
+                    document.getElementById('site-tagline').value = rawData.settings.site_tagline || "";
+                    document.getElementById('admin-bot-token').value = rawData.settings.bot_token || "";
+                    
+                    // Inject Site Icon Preview on Load
+                    if(rawData.settings.site_icon) {
+                        document.getElementById('preview-site-icon').src = rawData.settings.site_icon;
+                        document.getElementById('preview-site-icon').style.display = 'block';
+                        document.getElementById('btn-rm-site-icon').style.display = 'block';
+                    } else {
+                        document.getElementById('preview-site-icon').style.display = 'none';
+                        document.getElementById('btn-rm-site-icon').style.display = 'none';
+                    }
+                }
+
+                if(rawData.user_settings) {
+                    document.getElementById('user-invite-durations').value = rawData.user_settings.invite_durations || "1, 7, 30, lifetime";
+                    document.getElementById('user-extend-durations').value = rawData.user_settings.extend_durations || "7, 30, lifetime";
+                    document.getElementById('user-notify-join').value = rawData.user_settings.notify_join || "true";
+                    document.getElementById('user-notify-leave').value = rawData.user_settings.notify_leave || "true";
+                    document.getElementById('agent-upi-id').value = rawData.user_settings.agent_upi_id || "";
+                }
+
+                populateDropdowns(); applyFilters(); renderStats();
+                if(currentUser && currentUser.role === 'ADMIN') { fetchAgents(); renderAdminChannels(); fetchPlans(); fetchUpis(); renderAdminTxnsUI(); }
+            } catch (e) { showToast("⚠️ Error connecting to server"); }
+        }
+
+        async function fetchBotInfo() {
+            try {
+                const res = await fetch('/api/bot_info');
+                const data = await res.json();
+                const instEl = document.getElementById('bot-instruction-name');
+                if (instEl && data.username !== 'unknown') { instEl.innerText = `${data.name} (@${data.username})`; }
+            } catch (e) {}
+        }
+
+        async function restartBot() {
+            if(!confirm("⚠️ Are you sure you want to restart the Telegram bot?\nThis will disconnect it for a few seconds while Docker reboots the container.")) return;
+            showToast("⏳ Sending restart command...");
+            try {
+                const res = await fetch('/api/admin/restart_bot', { method: 'POST' });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    showToast("✅ Restarting! The bot will be back online in ~5 seconds.");
+                    setTimeout(() => fetchBotInfo(), 5000);
+                } else { showToast(`❌ ${data.message}`); }
+            } catch (e) { showToast("❌ Server Error"); }
+        }
+
+        // --- B2C AGENT LOGIC ---
+        async function saveAgentUpi() {
+            const upi = document.getElementById('agent-upi-id').value;
+            showToast("⏳ Saving...");
+            const res = await fetch('/api/user/agent_upi', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({upi_id: upi}) });
+            if((await res.json()).status === 'success') { showToast("✅ Saved!"); }
+        }
+
+        function editB2cPlan(id, name, cid, price, days, desc, allowFree, extraEmails) {
+            document.getElementById('b2c-plan-editor-title').innerText = "Edit Plan";
+            document.getElementById('b2c-plan-id').value = id;
+            document.getElementById('b2c-plan-name').value = name;
+            
+            // Select multiple values
+            const cSelect = document.getElementById('b2c-plan-channel');
+            const cidArray = String(cid).split(',');
+            for (let i = 0; i < cSelect.options.length; i++) {
+                cSelect.options[i].selected = cidArray.includes(cSelect.options[i].value);
+            }
+            
+            document.getElementById('b2c-plan-price').value = price;
+            document.getElementById('b2c-plan-days').value = days;
+            document.getElementById('b2c-plan-desc').value = desc.replace(/\\n/g, '\n');
+            document.getElementById('b2c-plan-free-auth').value = allowFree || '0';
+            document.getElementById('b2c-plan-extra-emails').value = extraEmails || '';
+            document.getElementById('b2c-plan-save-btn').innerText = "💾 Update Plan";
+            document.getElementById('b2c-plan-save-btn').classList.replace('bg-teal-600', 'bg-blue-600');
+            showSettingsTab('set-b2c-plans');
+        }
+
+        async function saveB2CPlan() {
+            const btn = document.getElementById('b2c-plan-save-btn');
+            const id = document.getElementById('b2c-plan-id').value;
+            const n = document.getElementById('b2c-plan-name').value;
+            
+            const cSelect = document.getElementById('b2c-plan-channel');
+            const c = Array.from(cSelect.selectedOptions).map(opt => opt.value).join(',');
+            
+            const p = document.getElementById('b2c-plan-price').value;
+            const d = document.getElementById('b2c-plan-days').value;
+            const desc = document.getElementById('b2c-plan-desc').value;
+            const allowFree = document.getElementById('b2c-plan-free-auth').value;
+            const extraEmails = document.getElementById('b2c-plan-extra-emails').value;
+            
+            if(!n || !c || !p || !d) return showToast("⚠️ Fill all required fields");
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            showToast("⏳ Saving...");
+            
+            try {
+                const payload = {plan_name: n, channel_id: c, price: p, duration_days: d, description: desc, allow_free_webhook: allowFree, extra_emails: extraEmails};
+                if(id) payload.plan_id = id;
+
+                const res = await fetch('/api/b2c/plans/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                if((await res.json()).status === 'success') { 
+                    document.getElementById('b2c-plan-editor-title').innerText = "Add New Plan";
+                    document.getElementById('b2c-plan-id').value = ''; document.getElementById('b2c-plan-name').value = ''; document.getElementById('b2c-plan-price').value = ''; document.getElementById('b2c-plan-days').value = ''; document.getElementById('b2c-plan-desc').value = '';
+                    document.getElementById('b2c-plan-free-auth').value = '0';
+                    document.getElementById('b2c-plan-extra-emails').value = '';
+                    document.getElementById('b2c-plan-save-btn').innerText = "➕ Add Customer Plan";
+                    document.getElementById('b2c-plan-save-btn').classList.replace('bg-blue-600', 'bg-teal-600');
+                    showToast("✅ Plan Saved!"); fetchData(); 
+                }
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        
+        async function deleteB2cPlan(id) {
+            if(!confirm("Delete this plan?")) return;
+            await fetch(`/api/b2c/plans/delete/${id}`, { method: 'POST' });
+            fetchData(); 
+        }
+
+        function togglePaymentLinkType() {
+            const type = document.getElementById('payment-link-type').value;
+            const amtInput = document.getElementById('payment-link-amount');
+            if (type === 'FLEXIBLE') {
+                amtInput.value = '';
+                amtInput.disabled = true;
+                amtInput.placeholder = "User defined";
+                amtInput.classList.add('opacity-50');
+            } else {
+                amtInput.disabled = false;
+                amtInput.placeholder = "Amount ₹";
+                amtInput.classList.remove('opacity-50');
+            }
+        }
+
+        function editPaymentLink(id, title, type, amount, discount, redirect, desc, allowFree, extraEmails) {
+            document.getElementById('payment-link-editor-title').innerText = "Edit Link";
+            document.getElementById('payment-link-id').value = id;
+            document.getElementById('payment-link-title').value = title;
+            document.getElementById('payment-link-description').value = desc.replace(/\\n/g, '\n');
+            document.getElementById('payment-link-type').value = type;
+            document.getElementById('payment-link-amount').value = amount;
+            document.getElementById('payment-link-discount').value = discount;
+            document.getElementById('payment-link-redirect').value = redirect;
+            document.getElementById('payment-link-free-auth').value = allowFree || '0';
+            document.getElementById('payment-link-extra-emails').value = extraEmails || '';
+            document.getElementById('payment-link-save-btn').innerText = "💾 Update Payment Link";
+            document.getElementById('payment-link-save-btn').classList.replace('bg-blue-600', 'bg-teal-600');
+            togglePaymentLinkType();
+            showSettingsTab('set-b2c-links');
+        }
+
+        async function savePaymentLink() {
+            const btn = document.getElementById('payment-link-save-btn');
+            const id = document.getElementById('payment-link-id').value;
+            const t = document.getElementById('payment-link-title').value;
+            const desc = document.getElementById('payment-link-description').value;
+            const type = document.getElementById('payment-link-type').value;
+            const a = document.getElementById('payment-link-amount').value;
+            const d = document.getElementById('payment-link-discount').value;
+            const r = document.getElementById('payment-link-redirect').value;
+            const allowFree = document.getElementById('payment-link-free-auth').value;
+            const extraEmails = document.getElementById('payment-link-extra-emails').value;
+
+            if(!t) return showToast("⚠️ Title is required.");
+            if(type === 'FIXED' && !a) return showToast("⚠️ Fixed links require an amount.");
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            showToast("⏳ Saving...");
+            
+            try {
+                const payload = {title: t, description: desc, type: type, amount: a, discount_code: d, redirect_url: r, allow_free_webhook: allowFree, extra_emails: extraEmails};
+                if(id) payload.link_id = id;
+
+                const res = await fetch('/api/b2c/payment_links/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                if((await res.json()).status === 'success') {
+                    document.getElementById('payment-link-editor-title').innerText = "Create Link";
+                    document.getElementById('payment-link-id').value = '';
+                    document.getElementById('payment-link-title').value = '';
+                    document.getElementById('payment-link-description').value = '';
+                    document.getElementById('payment-link-type').value = 'FIXED';
+                    document.getElementById('payment-link-amount').value = '';
+                    document.getElementById('payment-link-discount').value = '';
+                    document.getElementById('payment-link-redirect').value = '';
+                    document.getElementById('payment-link-free-auth').value = '0';
+                    document.getElementById('payment-link-extra-emails').value = '';
+                    document.getElementById('payment-link-save-btn').innerText = "➕ Generate Payment Link";
+                    document.getElementById('payment-link-save-btn').classList.replace('bg-teal-600', 'bg-blue-600');
+                    togglePaymentLinkType();
+                    showToast("✅ Link Saved!"); fetchData(); 
+                }
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        async function deletePaymentLink(id) {
+            if(!confirm("Delete this Payment Link?")) return;
+            await fetch(`/api/b2c/payment_links/delete/${id}`, { method: 'POST' });
+            fetchData(); 
+        }
+
+        async function forceTxnSuccess(txnId) {
+            if(!confirm("⚠️ Manually verify this payment?\nThis will immediately grant access and send success emails.")) return;
+            showToast("⏳ Approving...");
+            const res = await fetch(`/api/b2c/txns/force_success/${txnId}`, { method: 'POST' });
+            const data = await res.json();
+            if(data.status === 'success') { showToast("✅ Approved successfully!"); fetchData(); }
+            else { showToast(`❌ ${data.message}`); }
+        }
+
+        async function forceAdminTxnSuccess(txnId) {
+            if(!confirm("⚠️ Manually approve this agent payment?\nThis will immediately grant/renew access and send success emails.")) return;
+            showToast("⏳ Approving...");
+            const res = await fetch(`/api/admin/txns/force_success/${txnId}`, { method: 'POST' });
+            const data = await res.json();
+            if(data.status === 'success') { showToast("✅ Approved successfully!"); fetchData(); }
+            else { showToast(`❌ ${data.message}`); }
+        }
+
+        function editCoupon(id, code, pct, uses, planId) {
+            document.getElementById('coupon-id').value = id;
+            document.getElementById('coupon-code').value = code;
+            document.getElementById('coupon-pct').value = pct;
+            document.getElementById('coupon-uses').value = uses;
+            document.getElementById('coupon-plan-id').value = planId;
+            document.getElementById('coupon-save-btn').innerText = "💾 Update Coupon";
+            document.getElementById('coupon-save-btn').classList.replace('bg-gray-800', 'bg-blue-600');
+            showSettingsTab('set-b2c-coupons');
+        }
+
+        async function saveCoupon() {
+            const btn = document.getElementById('coupon-save-btn');
+            const id = document.getElementById('coupon-id').value;
+            const c = document.getElementById('coupon-code').value.toUpperCase();
+            const p = document.getElementById('coupon-pct').value;
+            const u = document.getElementById('coupon-uses').value;
+            const planId = document.getElementById('coupon-plan-id').value;
+            
+            if(!c || !p || !u) return showToast("⚠️ Fill all fields");
+            if(p < 1 || p > 100) return showToast("⚠️ Discount must be 1-100");
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            showToast("⏳ Saving...");
+            
+            try {
+                const payload = {code: c, discount_pct: p, max_uses: u, plan_id: planId};
+                if(id) payload.coupon_id = id;
+
+                const res = await fetch('/api/b2c/coupons/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                if((await res.json()).status === 'success') { 
+                    document.getElementById('coupon-id').value = ''; document.getElementById('coupon-code').value = ''; document.getElementById('coupon-pct').value = ''; document.getElementById('coupon-uses').value = '0'; document.getElementById('coupon-plan-id').value = '';
+                    document.getElementById('coupon-save-btn').innerText = "➕ Add Coupon";
+                    document.getElementById('coupon-save-btn').classList.replace('bg-blue-600', 'bg-gray-800');
+                    showToast("✅ Coupon Saved!"); fetchData(); 
+                }
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        async function deleteCoupon(id) { await fetch(`/api/b2c/coupons/delete/${id}`, { method: 'POST' }); fetchData(); }
+
+        function renderB2cUI() {
+            const pSel = document.getElementById('b2c-plan-channel');
+            pSel.innerHTML = '';
+            rawData.channels.forEach(c => {
+                if (c.bot_status !== 'BLOCKED') pSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+            
+            const cpSel = document.getElementById('coupon-plan-id');
+            cpSel.innerHTML = '<option value="">All Items (Plans & Links)</option>';
+            rawData.b2c_plans.forEach(p => {
+                cpSel.innerHTML += `<option value="${p.id}">Plan: ${p.plan_name}</option>`;
+            });
+            rawData.payment_links.forEach(pl => {
+                cpSel.innerHTML += `<option value="${pl.id}">Link: ${pl.title}</option>`;
+            });
+
+            const pCon = document.getElementById('b2c-plans-container');
+            pCon.innerHTML = '';
+            rawData.b2c_plans.forEach(p => {
+                const link = `${window.location.origin}/checkout/${p.id}`;
+                const durStr = p.duration_days == 0 ? 'Lifetime' : `${p.duration_days} Days`;
+                const safeDesc = p.description ? p.description.replace(/'/g, "\\'").replace(/\n/g, "\\n") : '';
+                const safeExtraEmails = p.extra_emails ? p.extra_emails.replace(/'/g, "\\'") : '';
+                pCon.innerHTML += `
+                <div class="bg-white border border-gray-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm mb-3">
+                    <div class="flex justify-between items-center border-b border-gray-50 pb-2">
+                        <span class="text-sm font-bold text-teal-900">${p.plan_name} <span class="bg-teal-50 text-teal-700 px-2 py-0.5 rounded text-xs ml-2">₹${p.price} (${durStr})</span></span>
+                        <div class="flex gap-2">
+                            <button onclick="editB2cPlan('${p.id}', '${p.plan_name}', '${p.channel_id}', '${p.price}', '${p.duration_days}', '${safeDesc}', '${p.allow_free_webhook}', '${safeExtraEmails}')" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
+                            <button onclick="deleteB2cPlan('${p.id}')" class="text-xs bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded transition hover:bg-red-100">Del</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
+                        <code class="text-xs truncate flex-1 text-gray-500 font-bold">${link}</code>
+                        <button onclick="copyToClipboard('${link}')" class="bg-white border border-gray-300 text-gray-700 px-4 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition-transform">Copy Link</button>
+                    </div>
+                </div>`;
+            });
+            if(rawData.b2c_plans.length === 0) pCon.innerHTML = `<p class="text-xs text-gray-400 italic font-medium p-2">No plans created yet.</p>`;
+
+            const plCon = document.getElementById('payment-links-container');
+            plCon.innerHTML = '';
+            rawData.payment_links.forEach(pl => {
+                const link = `${window.location.origin}/checkout/${pl.id}`;
+                const amtStr = pl.type === 'FLEXIBLE' ? 'Flexible' : `₹${pl.amount}`;
+                const safeDesc = pl.description ? pl.description.replace(/'/g, "\\'").replace(/\n/g, "\\n") : '';
+                const safeExtraEmailsLink = pl.extra_emails ? pl.extra_emails.replace(/'/g, "\\'") : '';
+                plCon.innerHTML += `
+                <div class="bg-white border border-gray-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm mb-3">
+                    <div class="flex justify-between items-center border-b border-gray-50 pb-2">
+                        <span class="text-sm font-bold text-blue-900">${pl.title} <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs ml-2">${amtStr}</span></span>
+                        <div class="flex gap-2">
+                            <button onclick="editPaymentLink('${pl.id}', '${pl.title}', '${pl.type}', '${pl.amount}', '${pl.discount_code}', '${pl.redirect_url}', '${safeDesc}', '${pl.allow_free_webhook}', '${safeExtraEmailsLink}')" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
+                            <button onclick="deletePaymentLink('${pl.id}')" class="text-xs bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded transition hover:bg-red-100">Del</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
+                        <code class="text-xs truncate flex-1 text-gray-500 font-bold">${link}</code>
+                        <button onclick="copyToClipboard('${link}')" class="bg-white border border-gray-300 text-gray-700 px-4 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition-transform">Copy Link</button>
+                    </div>
+                </div>`;
+            });
+            if(rawData.payment_links.length === 0) plCon.innerHTML = `<p class="text-xs text-gray-400 italic font-medium p-2">No standalone links generated.</p>`;
+
+            const cCon = document.getElementById('b2c-coupons-container');
+            cCon.innerHTML = '';
+            rawData.coupons.forEach(c => {
+                const useStr = c.max_uses == 0 ? `${c.used_count}/∞` : `${c.used_count}/${c.max_uses}`;
+                let planTag = c.plan_id ? `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] ml-2 font-bold uppercase tracking-wide">Specific Item</span>` : `<span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] ml-2 font-bold uppercase tracking-wide">All Items</span>`;
+                cCon.innerHTML += `
+                <div class="flex justify-between items-center bg-white p-3 border border-gray-200 rounded-xl shadow-sm mb-2">
+                    <span class="text-sm font-bold font-mono">${c.code} <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs ml-2 font-bold">-${c.discount_pct}%</span>${planTag}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500 mr-3 font-bold bg-gray-50 px-2 py-1 rounded border border-gray-100">Uses: ${useStr}</span>
+                        <button onclick="editCoupon('${c.id}', '${c.code}', '${c.discount_pct}', '${c.max_uses}', '${c.plan_id}')" class="text-xs bg-blue-50 text-blue-600 font-bold px-3 py-1.5 rounded hover:bg-blue-100 transition">Edit</button>
+                        <button onclick="deleteCoupon(${c.id})" class="text-xs bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded hover:bg-red-100 transition">Delete</button>
+                    </div>
+                </div>`;
+            });
+
+            // Calculate and display B2C Total Income
+            let totalB2cIncome = 0;
+            rawData.b2c_txns.forEach(t => {
+                if (t.status === 'SUCCESS') totalB2cIncome += parseFloat(t.final_amount || 0);
+            });
+            document.getElementById('b2c-total-income').innerText = `₹${totalB2cIncome.toFixed(2)}`;
+
+            // Search filtering for B2C txns
+            const searchQ = document.getElementById('search-b2c-txns') ? document.getElementById('search-b2c-txns').value.toLowerCase() : '';
+            let filteredTxns = rawData.b2c_txns;
+            if (searchQ) {
+                filteredTxns = rawData.b2c_txns.filter(t => 
+                    (t.customer_name || '').toLowerCase().includes(searchQ) ||
+                    (t.customer_email || '').toLowerCase().includes(searchQ) ||
+                    (t.txn_id || '').toLowerCase().includes(searchQ) ||
+                    (t.utr || '').toLowerCase().includes(searchQ) ||
+                    (t.coupon_code || '').toLowerCase().includes(searchQ)
+                );
+            }
+
+            const tCon = document.getElementById('b2c-txns-container');
+            const tStart = (state.b2cTxnsPage - 1) * state.b2cTxnsPerPage;
+            const pTxns = filteredTxns.slice(tStart, tStart + state.b2cTxnsPerPage);
+            const tTot = Math.ceil(filteredTxns.length / state.b2cTxnsPerPage) || 1;
+            
+            tCon.innerHTML = '';
+            pTxns.forEach(t => {
+                let badge = t.status === 'SUCCESS' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                let manualBtn = t.status === 'PENDING' ? `<button onclick="forceTxnSuccess('${t.txn_id}')" class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition border border-green-200 ml-2">Approve ✅</button>` : '';
+                tCon.innerHTML += `
+                <div class="bg-white border border-gray-200 p-4 rounded-xl mb-3 shadow-sm hover:border-gray-300 transition">
+                    <div class="flex justify-between font-bold text-gray-800 mb-2">
+                        <span class="truncate pr-2 text-sm">${t.customer_name || 'Customer'} - <span class="text-gray-500 font-medium">${t.customer_email}</span></span>
+                        <span class="px-2.5 py-1 rounded text-xs border ${badge} whitespace-nowrap shadow-sm">${t.status}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-3 font-semibold">Phone: ${t.customer_mobile || 'N/A'} <span class="text-gray-300 mx-2">|</span> Date: ${t.created_at || 'N/A'}</div>
+                    <div class="flex justify-between items-center text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                        <span class="font-bold text-sm">₹${t.final_amount} <span class="text-xs text-gray-400 font-medium ml-2">${t.coupon_code ? '(Code: '+t.coupon_code+')' : ''}</span></span>
+                        <div class="flex items-center">
+                            <span class="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">UTR: ${t.utr || 'Pending'}</span>
+                            ${manualBtn}
+                        </div>
+                    </div>
+                </div>`;
+            });
+            if(filteredTxns.length === 0) tCon.innerHTML = `<p class="text-sm text-gray-400 italic p-2 font-medium">No transactions found.</p>`;
+
+            const pag = document.getElementById('b2c-txns-pagination');
+            if (filteredTxns.length > state.b2cTxnsPerPage) {
+                pag.classList.remove('hidden');
+                document.getElementById('b2c-txns-page-info').innerText = `${state.b2cTxnsPage}/${tTot}`;
+                document.getElementById('b2c-txns-prev').disabled = state.b2cTxnsPage === 1;
+                document.getElementById('b2c-txns-next').disabled = state.b2cTxnsPage === tTot;
+            } else {
+                pag.classList.add('hidden');
+            }
+        }
+
+        function changeB2cTxnPage(dir) {
+            state.b2cTxnsPage += dir;
+            renderB2cUI();
+        }
+
+        // --- ADMIN TXN LOGIC ---
+        function renderAdminTxnsUI() {
+            if(!currentUser || currentUser.role !== 'ADMIN' || !rawData.admin_txns) return;
+            
+            let totalIncome = 0;
+            rawData.admin_txns.forEach(t => {
+                if (t.status === 'SUCCESS') totalIncome += parseFloat(t.amount || 0);
+            });
+            document.getElementById('admin-total-income').innerText = `₹${totalIncome.toFixed(2)}`;
+
+            const searchQ = document.getElementById('search-admin-txns') ? document.getElementById('search-admin-txns').value.toLowerCase() : '';
+            let filteredAdminTxns = rawData.admin_txns;
+            if(searchQ) {
+                filteredAdminTxns = rawData.admin_txns.filter(t => 
+                    (t.agent_email || '').toLowerCase().includes(searchQ) ||
+                    (t.txn_id || '').toLowerCase().includes(searchQ) ||
+                    (t.utr || '').toLowerCase().includes(searchQ)
+                );
+            }
+
+            const tCon = document.getElementById('admin-txns-container');
+            const tStart = (state.adminTxnsPage - 1) * state.adminTxnsPerPage;
+            const pTxns = filteredAdminTxns.slice(tStart, tStart + state.adminTxnsPerPage);
+            const tTot = Math.ceil(filteredAdminTxns.length / state.adminTxnsPerPage) || 1;
+            
+            tCon.innerHTML = '';
+            pTxns.forEach(t => {
+                let badge = t.status === 'SUCCESS' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                let manualBtn = t.status === 'PENDING' ? `<button onclick="forceAdminTxnSuccess('${t.txn_id}')" class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition border border-green-200 ml-2">Approve ✅</button>` : '';
+                tCon.innerHTML += `
+                <div class="bg-white border border-gray-200 p-4 rounded-xl mb-3 shadow-sm hover:border-gray-300 transition">
+                    <div class="flex justify-between font-bold text-gray-800 mb-2">
+                        <span class="truncate pr-2 text-sm">Agent: <span class="text-gray-500 font-medium">${t.agent_email}</span></span>
+                        <span class="px-2.5 py-1 rounded text-xs border ${badge} whitespace-nowrap shadow-sm">${t.status}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-3 font-semibold">Date: ${t.created_at || 'N/A'} <span class="text-gray-300 mx-2">|</span> Plan ID: ${t.plan_id}</div>
+                    <div class="flex justify-between items-center text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                        <span class="font-bold text-sm">₹${t.amount}</span>
+                        <div class="flex items-center">
+                            <span class="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">UTR: ${t.utr || 'Pending'}</span>
+                            ${manualBtn}
+                        </div>
+                    </div>
+                </div>`;
+            });
+            if(filteredAdminTxns.length === 0) tCon.innerHTML = `<p class="text-sm text-gray-400 italic p-2 font-medium">No B2B transactions found.</p>`;
+
+            const pag = document.getElementById('admin-txns-pagination');
+            if (filteredAdminTxns.length > state.adminTxnsPerPage) {
+                pag.classList.remove('hidden');
+                document.getElementById('admin-txns-page-info').innerText = `${state.adminTxnsPage}/${tTot}`;
+                document.getElementById('admin-txns-prev').disabled = state.adminTxnsPage === 1;
+                document.getElementById('admin-txns-next').disabled = state.adminTxnsPage === tTot;
+            } else {
+                pag.classList.add('hidden');
+            }
+        }
+
+        function changeAdminTxnPage(dir) {
+            state.adminTxnsPage += dir;
+            renderAdminTxnsUI();
+        }
+
+        // --- BILLING LOGIC ---
+        function openBilling() { renderBillingPlans(); switchTab('billing'); }
+
+        async function renderBillingPlans() {
+            const container = document.getElementById('billing-plans-container');
+            container.innerHTML = '';
+            
+            rawData.plans.forEach(p => {
+                let dur = p.duration_str.toLowerCase() === 'lifetime' ? 'Lifetime' : `${p.duration_str} Days`;
+                let dList = '';
+                if(p.details) {
+                    let lines = p.details.split('\n');
+                    dList = '<ul class="list-disc list-inside text-xs text-gray-500 mb-3 space-y-1 mt-2">';
+                    lines.forEach(l => { if(l.trim()) dList += `<li>${l.trim()}</li>`; });
+                    dList += '</ul>';
+                }
+                
+                container.innerHTML += `
+                <div class="bg-white border-2 border-gray-100 hover:border-blue-500 rounded-2xl p-5 shadow-sm flex flex-col transition cursor-pointer" onclick="initiatePayment(${p.id}, '${p.name}')">
+                    <h3 class="font-bold text-gray-800 text-lg">${p.name}</h3>
+                    <p class="text-xs text-blue-600 font-bold uppercase tracking-wide mt-1">Valid for: ${dur}</p>
+                    ${dList}
+                    <div class="mt-auto flex justify-between items-center border-t border-gray-50 pt-3 mt-4">
+                        <span class="text-2xl font-black text-blue-600">₹${p.price}</span>
+                        <span class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm">Buy Now</span>
+                    </div>
+                </div>`;
+            });
+            if(rawData.plans.length === 0) container.innerHTML = `<p class="text-sm text-gray-500 italic p-4 text-center col-span-2 font-medium">No plans configured by admin.</p>`;
+        }
+
+        async function initiatePayment(planId, planName) {
+            showToast("⏳ Generating Secure Payment...");
+            try {
+                const res = await fetch('/api/payment/initiate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({plan_id: planId}) });
+                const data = await res.json();
+                if(data.status === 'error') return showToast(`❌ ${data.message}`);
+                
+                document.getElementById('billing-pay-zone').classList.remove('hidden');
+                document.getElementById('pay-plan-title').innerText = `Checkout: ${planName}`;
+                
+                document.getElementById('pay-base-txt').innerText = `Plan Price: ₹${data.base_price} | Gateway Fee: ₹${data.fee.toFixed(2)}`;
+                document.getElementById('pay-amt-txt').innerText = `₹${data.amount.toFixed(2)}`;
+                document.getElementById('active-txn-id').value = data.txn_id;
+                
+                const qrContainer = document.getElementById('upi-qrcode');
+                qrContainer.innerHTML = '';
+                qrCodeObj = new QRCode(qrContainer, { text: data.upi_string, width: 200, height: 200, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
+
+                if(pollInterval) clearInterval(pollInterval);
+                pollInterval = setInterval(async () => {
+                    try {
+                        const sRes = await fetch(`/api/payment/status/${data.txn_id}`);
+                        const sData = await sRes.json();
+                        if(sData.status === 'SUCCESS') {
+                            clearInterval(pollInterval);
+                            showToast("🎉 Payment Auto-Verified!");
+                            setTimeout(() => { window.location.reload(); }, 1500);
+                        }
+                    } catch(err) { /* ignore polling errors */ }
+                }, 3000);
+            } catch(err) {
+                showToast("❌ Network error. Try again.");
+            }
+        }
+
+        function closePayment() {
+            document.getElementById('billing-pay-zone').classList.add('hidden');
+            if(pollInterval) clearInterval(pollInterval);
+        }
+
+        async function verifyPaymentManual() {
+            const txnId = document.getElementById('active-txn-id').value, utr = document.getElementById('pay-utr').value;
+            if(utr.length < 12) return showToast("⚠️ Enter valid 12-Digit UTR");
+            showToast("⏳ Verifying Manually...");
+            const res = await fetch('/api/payment/verify_manual', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({txn_id: txnId, utr: utr}) });
+            const data = await res.json();
+            if(data.status === 'success') {
+                if(pollInterval) clearInterval(pollInterval);
+                showToast("🎉 Payment Confirmed!"); setTimeout(() => { window.location.reload(); }, 1500);
+            } else { showToast(`❌ ${data.message}`); }
+        }
+
+        // --- ADMIN UPI MGMT ---
+        async function fetchUpis() {
+            const res = await fetch('/api/upi');
+            const data = await res.json();
+            const container = document.getElementById('admin-upis-container');
+            container.innerHTML = '';
+            data.upis.forEach(u => {
+                let isPri = u.is_primary ? `<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase ml-2 border border-green-200">Primary</span>` : `<button onclick="primaryUpi(${u.id})" class="text-[10px] text-blue-500 font-bold ml-2 underline">Set Primary</button>`;
+                container.innerHTML += `
+                <div class="flex justify-between items-center bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+                    <div class="text-sm font-bold text-gray-700 flex items-center">${u.upi_id} ${isPri}</div>
+                    <button onclick="deleteUpi(${u.id})" class="text-red-500 hover:text-red-700 font-bold px-2 text-xl leading-none">&times;</button>
+                </div>`;
+            });
+        }
+        async function addUpi() {
+            const v = document.getElementById('upi-add-id').value;
+            if(!v) return showToast("⚠️ Enter UPI ID");
+            const res = await fetch('/api/upi/add', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({upi_id: v}) });
+            if((await res.json()).status === 'success') { document.getElementById('upi-add-id').value = ''; fetchUpis(); } else { showToast("❌ Exists"); }
+        }
+        async function deleteUpi(id) { await fetch(`/api/upi/delete/${id}`, { method: 'POST' }); fetchUpis(); }
+        async function primaryUpi(id) { await fetch(`/api/upi/primary/${id}`, { method: 'POST' }); fetchUpis(); }
+
+        // --- ADMIN PLAN MGMT ---
+        let editPlanId = null;
+        async function fetchPlans() {
+            const res = await fetch('/api/public_config');
+            const data = await res.json();
+            const container = document.getElementById('admin-plans-container');
+            container.innerHTML = '';
+            data.plans.forEach(p => {
+                let safeDets = p.details ? p.details.replace(/'/g, "\\'").replace(/\n/g, "\\n") : '';
+                container.innerHTML += `
+                <div class="flex flex-col bg-white p-4 border border-gray-200 rounded-xl shadow-sm mb-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-gray-800">${p.name} - ₹${p.price} <span class="text-xs text-gray-500 font-medium ml-1">(${p.duration_str})</span></span>
+                        <div class="flex gap-2">
+                            <button onclick="editPlan(${p.id}, '${p.name}', ${p.price}, '${p.duration_str}', '${safeDets}')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded transition">Edit</button>
+                            <button onclick="deletePlan(${p.id})" class="text-xs bg-red-50 hover:bg-red-100 text-red-700 font-bold px-3 py-1.5 rounded transition">Del</button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+        
+        function editPlan(id, name, price, dur, dets) {
+            editPlanId = id;
+            document.getElementById('plan-editor-title').innerText = "Edit Plan";
+            document.getElementById('plan-add-id').value = id;
+            document.getElementById('plan-add-name').value = name;
+            document.getElementById('plan-add-price').value = price;
+            document.getElementById('plan-add-days').value = dur;
+            document.getElementById('plan-add-details').value = dets.replace(/\\n/g, '\n');
+            document.getElementById('plan-save-btn').innerText = "💾 Update Plan";
+            document.getElementById('plan-save-btn').classList.replace('bg-gray-800', 'bg-blue-600');
+        }
+
+        async function savePlan() {
+            const btn = document.getElementById('plan-save-btn');
+            const n = document.getElementById('plan-add-name').value, p = document.getElementById('plan-add-price').value, d = document.getElementById('plan-add-days').value, dets = document.getElementById('plan-add-details').value;
+            if(!n || !p || !d) return showToast("⚠️ Fill Name, Price, and Duration");
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            try {
+                const payload = {name: n, price: parseInt(p), duration_str: d, details: dets};
+                if (editPlanId) payload.id = editPlanId;
+                
+                await fetch('/api/plans/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                
+                editPlanId = null;
+                document.getElementById('plan-editor-title').innerText = "Add New Plan";
+                document.getElementById('plan-add-id').value = ''; document.getElementById('plan-add-name').value = ''; document.getElementById('plan-add-price').value = ''; document.getElementById('plan-add-days').value = ''; document.getElementById('plan-add-details').value = '';
+                document.getElementById('plan-save-btn').innerText = "➕ Add Agent Plan";
+                document.getElementById('plan-save-btn').classList.replace('bg-blue-600', 'bg-gray-800');
+                fetchPlans(); fetchUpis();
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        async function deletePlan(id) { if(confirm("Delete plan?")) { await fetch(`/api/plans/delete/${id}`, { method: 'POST' }); fetchPlans(); } }
+
+        // --- CONFIG & USERS ---
+        function getBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result); r.onerror = e => rej(e); }); }
+
+        async function saveAdminCreds() {
+            const em = document.getElementById('admin-cred-email').value;
+            const pw = document.getElementById('admin-cred-pass').value;
+            if (!em) return showToast("⚠️ Email is required.");
+            
+            showToast("⏳ Updating Credentials...");
+            const res = await fetch('/api/admin/update_credentials', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: em, password: pw}) });
+            const data = await res.json();
+            if(data.status === 'success') {
+                showToast("✅ Credentials Updated!");
+                document.getElementById('admin-cred-pass').value = '';
+                verifyUser(); 
+            } else {
+                showToast(`❌ ${data.message}`);
+            }
+        }
+
+        async function saveBotToken() {
+            const tk = document.getElementById('admin-bot-token').value;
+            showToast("⏳ Saving Token...");
+            const res = await fetch('/api/update_system_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({bot_token: tk}) });
+            if((await res.json()).status === 'success') { showToast("✅ Bot Token Saved!"); fetchData(); }
+        }
+
+        async function saveBranding() {
+            const t = document.getElementById('site-title').value;
+            const sub = document.getElementById('site-tagline').value;
+            const file = document.getElementById('site-icon-file').files[0];
+            
+            let payload = {site_title: t, site_tagline: sub};
+            
+            if (pendingSiteIconDelete) {
+                payload.site_icon = ""; // Pushes an empty string to DB, removing the icon globally
+            } else if (file) {
+                if (!file.type.match(/^image\/(jpeg|jpg|png)$/)) return showToast("⚠️ PNG or JPG only for Site Icon");
+                if (file.size > 2*1024*1024) return showToast("⚠️ Icon must be less than 2MB");
+                payload.site_icon = await getBase64(file);
+            }
+            
+            showToast("⏳ Saving Branding...");
+            const res = await fetch('/api/update_system_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            if((await res.json()).status === 'success') { 
+                showToast("✅ Branding Saved!"); 
+                document.getElementById('site-icon-file').value = '';
+                pendingSiteIconDelete = false;
+                fetchData(); 
+            }
+        }
+
+        async function saveSmtp() {
+            const h = document.getElementById('smtp-host').value;
+            const po = document.getElementById('smtp-port').value;
+            const s = document.getElementById('smtp-secure').value;
+            const u = document.getElementById('smtp-user').value;
+            const pa = document.getElementById('smtp-pass').value;
+            
+            showToast("⏳ Saving Email Settings...");
+            const res = await fetch('/api/update_system_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({smtp_host: h, smtp_port: po, smtp_secure: s, smtp_user: u, smtp_pass: pa}) });
+            if((await res.json()).status === 'success') { showToast("✅ SMTP Settings Saved!"); fetchData(); }
+        }
+
+        async function saveBotMenu() {
+            const msg = document.getElementById('global-menu-msg').value, btns = document.getElementById('global-menu-btns').value;
+            showToast("⏳ Saving...");
+            const res = await fetch('/api/update_menu', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: msg, buttons: btns}) });
+            if((await res.json()).status === 'success') { showToast("✅ Menu Saved!"); fetchData(); }
+        }
+
+        async function saveSystemConfig() {
+            const regEn = document.getElementById('reg-enable').value, trial = document.getElementById('reg-trial-days').value;
+            const rand = document.getElementById('upi-randomize') ? document.getElementById('upi-randomize').value : 'false';
+            showToast("⏳ Saving...");
+            const res = await fetch('/api/update_system_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({registration_enabled: regEn, trial_days: trial, upi_randomize: rand}) });
+            if((await res.json()).status === 'success') { showToast("✅ Config Saved!"); fetchData(); }
+        }
+
+        async function saveUserDurations() {
+            const inv = document.getElementById('user-invite-durations').value, ext = document.getElementById('user-extend-durations').value;
+            showToast("⏳ Saving...");
+            const res = await fetch('/api/user/durations', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({invite_durations: inv, extend_durations: ext}) });
+            if((await res.json()).status === 'success') { showToast("✅ Saved!"); fetchData(); }
+        }
+
+        async function saveUserNotifications() {
+            const nj = document.getElementById('user-notify-join').value, nl = document.getElementById('user-notify-leave').value;
+            showToast("⏳ Saving...");
+            const res = await fetch('/api/user/notifications', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({notify_join: nj, notify_leave: nl}) });
+            if((await res.json()).status === 'success') { showToast("✅ Saved!"); fetchData(); }
+        }
+
+        // --- AGENT MGMT ---
+        async function fetchAgents() {
+            if(!currentUser || currentUser.role !== 'ADMIN') return;
+            const res = await fetch('/api/agents');
+            const data = await res.json();
+            adminAgentList = data.agents || [];
+            renderAgents();
+        }
+
+        function renderAgents() {
+            const container = document.getElementById('agents-container');
+            container.innerHTML = '';
+            
+            const searchQ = document.getElementById('search-agents') ? document.getElementById('search-agents').value.toLowerCase() : '';
+            
+            let filtered = adminAgentList;
+            if (searchQ) {
+                filtered = adminAgentList.filter(a => 
+                    (a.email || '').toLowerCase().includes(searchQ) ||
+                    (a.role || '').toLowerCase().includes(searchQ)
+                );
+            }
+
+            filtered.forEach(a => {
+                let badge = a.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
+                let delBtn = a.id === currentUser.id ? `<span class="text-xs text-gray-400 font-bold ml-3 mr-2">You</span>` : `<button onclick="deleteAgent(${a.id})" class="text-red-500 hover:text-red-700 font-bold text-2xl px-2 rounded transition ml-2 leading-none">&times;</button>`;
+                let expEdit = a.id === currentUser.id ? `<span class="text-[10px] text-green-600 block mt-1 font-bold uppercase tracking-wide">Permanent Admin</span>` : `<div class="flex items-center gap-2 mt-2"><input type="date" id="edit-exp-${a.id}" value="${a.expiry_date === 'lifetime' ? '' : a.expiry_date}" class="text-xs border border-gray-300 rounded p-1.5 w-32 bg-white text-gray-700 font-bold shadow-sm"><button onclick="editAgentExpiry(${a.id})" class="text-xs bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded shadow-sm hover:bg-blue-200 transition">Save</button> <span class="text-[10px] text-gray-400 font-medium">(blank = lifetime)</span></div>`;
+                container.innerHTML += `<div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-start mb-3"><div><div class="flex items-center gap-3"><div class="font-bold text-sm text-gray-800">${a.email}</div><span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-current opacity-80 ${badge}">${a.role}</span></div>${expEdit}</div>${delBtn}</div>`;
+            });
+            if (filtered.length === 0) container.innerHTML = `<p class="text-sm text-gray-400 italic p-2 font-medium">No agents found.</p>`;
+        }
+
+        async function editAgentExpiry(id) {
+            let newExp = document.getElementById(`edit-exp-${id}`).value;
+            if (!newExp) newExp = 'lifetime';
+            showToast("⏳ Updating...");
+            const res = await fetch(`/api/agents/edit_expiry/${id}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({expiry_date: newExp}) });
+            if((await res.json()).status === 'success') { showToast("✅ Updated"); fetchAgents(); }
+        }
+
+        async function deleteAgent(id) {
+            if(!confirm("🚨 Delete this Agent?\n\nThis will wipe all their channels, users, and links.")) return;
+            const res = await fetch(`/api/agents/delete/${id}`, { method: 'POST' });
+            if((await res.json()).status === 'success') { showToast("🗑️ Agent & Data Removed"); fetchAgents(); fetchData(); }
+        }
+
+        function renderAdminChannels() {
+            if(currentUser.role !== 'ADMIN') return;
+            const container = document.getElementById('admin-channels-container');
+            container.innerHTML = '';
+            rawData.channels.forEach(c => {
+                const safeName = c.name.replace(/'/g, "\\'");
+                if(c.bot_status === 'BLOCKED') {
+                    container.innerHTML += `<div class="bg-red-50 p-4 rounded-xl border border-red-200 flex flex-col md:flex-row md:items-center justify-between gap-3 opacity-80 mb-3"><span class="text-sm font-bold text-red-700">⛔ ${c.name} (Blocked)</span><div class="flex gap-2"><button onclick="unblockChannel('${c.id}', '${safeName}')" class="bg-green-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm hover:bg-green-600 transition">✅ Unblock</button><button onclick="deleteChannel('${c.id}', '${safeName}')" class="bg-gray-800 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm hover:bg-black transition">❌ Delete</button></div></div>`;
+                } else {
+                    container.innerHTML += `<div class="bg-white p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm mb-3"><span class="text-sm font-bold text-gray-800 truncate pr-2 flex-1">${c.name}</span><div class="flex flex-wrap gap-2"><button onclick="clearChannel('${c.id}', '${safeName}')" class="bg-orange-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm hover:bg-orange-600 transition">🧹 Clear Data</button><button onclick="blockClearChannel('${c.id}', '${safeName}')" class="bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm hover:bg-red-600 transition">🚫 Block</button><button onclick="deleteChannel('${c.id}', '${safeName}')" class="bg-gray-800 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm hover:bg-black transition">❌ Delete</button></div></div>`;
+                }
+            });
+        }
+
+        async function blockClearChannel(channelId, channelName) {
+            if(!confirm(`🚨 WARNING! Block and Wipe ${channelName}?`)) return;
+            const res = await fetch(`/api/channels/block/${channelId}`, { method: 'POST' });
+            if((await res.json()).status === 'success') { showToast("✅ Blocked & Cleared!"); fetchData(); } 
+        }
+
+        async function clearChannel(channelId, channelName) {
+            if(!confirm(`⚠️ Clear web database for ${channelName}?`)) return;
+            const res = await fetch(`/api/channels/clear/${channelId}`, { method: 'POST' });
+            if((await res.json()).status === 'success') { showToast("✅ Data Cleared!"); fetchData(); }
+        }
+
+        async function unblockChannel(channelId, channelName) {
+            if(!confirm(`✅ Unblock ${channelName}?`)) return;
+            const res = await fetch(`/api/channels/unblock/${channelId}`, { method: 'POST' });
+            if((await res.json()).status === 'success') { showToast("✅ Channel Unblocked!"); fetchData(); }
+        }
+
+        async function deleteChannel(channelId, channelName) {
+            if(!confirm(`🧨 EXTREME DANGER! Delete ${channelName} completely?`)) return;
+            const res = await fetch(`/api/channels/delete/${channelId}`, { method: 'POST' });
+            if((await res.json()).status === 'success') { showToast("✅ Channel Deleted!"); fetchData(); } 
+        }
+
+        function populateDropdowns() {
+            const selCh = document.getElementById('sel-channel'), fltCh = document.getElementById('filter-channel'), msgCh = document.getElementById('msg-channel'), statCh = document.getElementById('stat-channel');
+            selCh.innerHTML = '<option value="" disabled selected>Select Channel...</option>'; 
+            fltCh.innerHTML = '<option value="ALL">All Channels</option>';
+            statCh.innerHTML = '<option value="ALL">All Channels</option>';
+            
+            const currentMsgCh = msgCh.value; msgCh.innerHTML = '<option value="" disabled selected>Select Channel...</option>';
+            
+            rawData.channels.forEach(c => { 
+                if (c.bot_status === 'BLOCKED') return; 
+                let label = c.bot_status === 'INACTIVE' ? `⚠️ ${c.name}` : c.name;
+                let dis = c.bot_status === 'INACTIVE' ? 'disabled' : '';
+                selCh.innerHTML += `<option value="${c.id}" ${dis}>${label}</option>`; 
+                fltCh.innerHTML += `<option value="${c.name}">${label}</option>`; 
+                msgCh.innerHTML += `<option value="${c.id}">${label}</option>`; 
+                statCh.innerHTML += `<option value="${c.name}">${label}</option>`; 
+            });
+
+            const durSel = document.getElementById('sel-duration');
+            const durs = (rawData.user_settings.invite_durations || "1, 7, 30, lifetime").split(',');
+            durSel.innerHTML = '';
+            durs.forEach(d => {
+                let val = d.trim();
+                if(!val) return;
+                let label = val.toLowerCase() === 'lifetime' ? 'Lifetime' : `${val} Days`;
+                durSel.innerHTML += `<option value="${val}">${label}</option>`;
+            });
+
+            if (currentMsgCh) msgCh.value = currentMsgCh; else if (rawData.channels.length > 0) msgCh.value = rawData.channels[0].id;
+            loadMessagesIntoForm();
+        }
+
+        function loadMessagesIntoForm() {
+            const chanId = document.getElementById('msg-channel').value;
+            if(!chanId) return;
+            const chanData = rawData.channels.find(c => c.id == chanId);
+            if(chanData) {
+                document.getElementById('msg-welcome').value = chanData.welcome || '';
+                document.getElementById('msg-welcome-btns').value = chanData.w_btns || '';
+                document.getElementById('msg-farewell').value = chanData.farewell || '';
+                document.getElementById('msg-farewell-btns').value = chanData.f_btns || '';
+                
+                // Handle Welcome Image Preview
+                if (chanData.w_img) {
+                    document.getElementById('btn-rm-welcome').style.display = 'block';
+                    document.getElementById('preview-welcome').style.display = 'block';
+                    document.getElementById('preview-welcome').src = `/api/image/welcome_image_${chanId}.jpg?t=${new Date().getTime()}`;
+                } else {
+                    document.getElementById('btn-rm-welcome').style.display = 'none';
+                    document.getElementById('preview-welcome').style.display = 'none';
+                }
+
+                // Handle Farewell Image Preview
+                if (chanData.f_img) {
+                    document.getElementById('btn-rm-farewell').style.display = 'block';
+                    document.getElementById('preview-farewell').style.display = 'block';
+                    document.getElementById('preview-farewell').src = `/api/image/farewell_image_${chanId}.jpg?t=${new Date().getTime()}`;
+                } else {
+                    document.getElementById('btn-rm-farewell').style.display = 'none';
+                    document.getElementById('preview-farewell').style.display = 'none';
+                }
+
+                document.getElementById('file-welcome').value = ""; document.getElementById('file-farewell').value = "";
+                pendingDeletions = { welcome: false, farewell: false };
+                setTimeout(() => { autoResizeAll(); }, 50);
+            }
+        }
+
+        // Handles local image preview instantly when user selects a file
+        function previewLocalImage(input, previewId, rmBtnId) {
+            if(input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(previewId).src = e.target.result;
+                    document.getElementById(previewId).style.display = 'block';
+                    document.getElementById(rmBtnId).style.display = 'block';
+                    
+                    // Reset pending deletions if they upload a new file after hitting delete
+                    if (previewId.includes('welcome')) pendingDeletions.welcome = false;
+                    if (previewId.includes('farewell')) pendingDeletions.farewell = false;
+                    if (previewId.includes('site-icon')) pendingSiteIconDelete = false;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function removeImage(type) {
+            pendingDeletions[type] = true;
+            document.getElementById(`btn-rm-${type}`).style.display = 'none';
+            document.getElementById(`preview-${type}`).style.display = 'none';
+            document.getElementById(`preview-${type}`).src = "";
+            document.getElementById(`file-${type}`).value = "";
+            showToast(`🗑️ Image flagged for removal. Click Save to confirm.`);
+        }
+
+        function removeSiteIcon() {
+            pendingSiteIconDelete = true;
+            document.getElementById('preview-site-icon').style.display = 'none';
+            document.getElementById('btn-rm-site-icon').style.display = 'none';
+            document.getElementById('site-icon-file').value = "";
+            showToast(`🗑️ Site Icon flagged for removal. Click Save to confirm.`);
+        }
+
+        async function validateImage(file) {
+            if (!file.type.match(/^image\/(jpeg|jpg)$/)) throw new Error("JPG only");
+            if (file.size > 5*1024*1024) throw new Error("Max 5MB");
+            return true; 
+        }
+
+        async function saveMessages() {
+            const chanId = document.getElementById('msg-channel').value;
+            if(!chanId) return showToast("⚠️ Select channel");
+            const wFile = document.getElementById('file-welcome').files[0], fFile = document.getElementById('file-farewell').files[0];
+            try { if (wFile) await validateImage(wFile); if (fFile) await validateImage(fFile); } catch(e) { return showToast("⚠️ " + e.message); }
+            
+            const payload = { channel_id: chanId, welcome: document.getElementById('msg-welcome').value, farewell: document.getElementById('msg-farewell').value, w_btns: document.getElementById('msg-welcome-btns').value, f_btns: document.getElementById('msg-farewell-btns').value };
+            if (pendingDeletions.welcome) payload.welcome_image = "DELETE"; else if (wFile) payload.welcome_image = await getBase64(wFile);
+            if (pendingDeletions.farewell) payload.farewell_image = "DELETE"; else if (fFile) payload.farewell_image = await getBase64(fFile);
+
+            showToast("⏳ Saving...");
+            const res = await fetch('/api/update_messages', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            if ((await res.json()).status === 'success') { showToast("✅ Saved!"); fetchData(); } 
+        }
+
+        function applyFilters() {
+            const sq = document.getElementById('search-box').value.toLowerCase(), fc = document.getElementById('filter-channel').value;
+            filteredLinks = rawData.links.filter(l => (fc === "ALL" || l.channel.includes(fc)) && (sq === "" || String(l.id).includes(sq) || (l.link || '').toLowerCase().includes(sq)));
+            filteredUsers = rawData.users.filter(u => (fc === "ALL" || u.channel.includes(fc)) && (sq === "" || String(u.id).includes(sq) || String(u.user_id).includes(sq) || (u.name || '').toLowerCase().includes(sq)));
+            state.linksPage = 1; state.usersPage = 1; renderTables();
+        }
+
+        function renderTables() {
+            const lStart = (state.linksPage - 1) * state.perPage, pLinks = filteredLinks.slice(lStart, lStart + state.perPage), lTot = Math.ceil(filteredLinks.length / state.perPage) || 1;
+            document.getElementById('links-page-info').innerText = `${state.linksPage}/${lTot}`;
+            document.getElementById('links-prev').disabled = state.linksPage === 1; document.getElementById('links-next').disabled = state.linksPage === lTot;
+            const lBody = document.getElementById('links-container'); lBody.innerHTML = '';
+            if(pLinks.length === 0) lBody.innerHTML = `<div class="text-center text-gray-400 text-sm py-4 font-medium">No links found.</div>`;
+            pLinks.forEach(l => {
+                let uses = l.max_uses === 0 ? `<span class="text-green-600">${l.used_count}/∞</span>` : `${l.used_count}/${l.max_uses}`;
+                lBody.innerHTML += `
+                <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-2">
+                    <div class="flex justify-between items-center mb-2 border-b border-gray-50 pb-2">
+                        <span class="font-bold text-sm truncate pr-2">${l.channel}</span>
+                        <span class="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded border border-purple-100">${l.duration==='lifetime'?'Life':l.duration+'d'}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-gray-500 mb-3 font-mono font-medium">
+                        <span>Uses: ${uses}</span> <span>ID: #${l.id}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="copyToClipboard('${l.link}')" class="flex-1 bg-blue-50 text-blue-600 font-bold text-xs py-2 rounded-lg border border-blue-100 active:bg-blue-100 transition">📋 Copy Link</button>
+                        <button onclick="deleteLink(${l.id})" class="bg-red-50 text-red-600 font-bold text-xs px-4 py-2 rounded-lg border border-red-100 active:bg-red-100 transition text-lg leading-none">&times;</button>
+                    </div>
+                </div>`;
+            });
+
+            const uStart = (state.usersPage - 1) * state.perPage, pUsers = filteredUsers.slice(uStart, uStart + state.perPage), uTot = Math.ceil(filteredUsers.length / state.perPage) || 1;
+            document.getElementById('users-page-info').innerText = `${state.usersPage}/${uTot}`;
+            document.getElementById('users-prev').disabled = state.usersPage === 1; document.getElementById('users-next').disabled = state.usersPage === uTot;
+            const uBody = document.getElementById('users-container'); 
+            
+            const rawExtendDurations = (rawData.user_settings.extend_durations || "7, 30, lifetime").split(',');
+            
+            uBody.innerHTML = '';
+            if(pUsers.length === 0) uBody.innerHTML = `<div class="text-center text-gray-400 text-sm py-4 font-medium">No users found.</div>`;
+            
+            pUsers.forEach(u => {
+                let sCol = u.status==='ACTIVE'?'text-green-700 bg-green-50 border-green-200': u.status==='REVOKED'?'text-red-700 bg-red-50 border-red-200': u.status==='LEFT EARLY'?'text-orange-700 bg-orange-50 border-orange-200': 'text-purple-700 bg-purple-50 border-purple-200';
+                let btns = "";
+                
+                if (['REVOKED', 'LEFT', 'LEFT EARLY', 'EXPIRED'].includes(u.status)) {
+                    btns = `<span class="text-gray-400 text-xs font-bold uppercase w-full text-right mt-1">${u.status}</span>`;
+                } else {
+                    let extBtns = "";
+                    if (u.expiry !== 'lifetime') {
+                        rawExtendDurations.forEach(d => {
+                            let val = d.trim();
+                            if(!val) return;
+                            let label = val.toLowerCase() === 'lifetime' ? 'Life' : `+${val}d`;
+                            let arg = val.toLowerCase() === 'lifetime' ? "'lifetime'" : val;
+                            extBtns += `<button onclick="extendUser(${u.id}, ${arg})" class="bg-green-50 text-green-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-green-200 shadow-sm transition hover:bg-green-100">${label}</button>`;
+                        });
+                    }
+                    btns = `<div class="flex gap-2 w-full justify-between items-center"><div class="flex gap-2 flex-wrap">${extBtns}</div> <button onclick="revokeUser(${u.id})" class="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-600 transition ml-auto shrink-0">Kick</button></div>`;
+                }
+                
+                uBody.innerHTML += `
+                <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col mb-3">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="truncate pr-2">
+                            <div class="font-bold text-sm leading-tight truncate text-gray-800">${u.name}</div>
+                            <div class="text-xs text-gray-500 mt-1 font-medium">${u.user_id} • <span class="font-semibold text-gray-700">${u.channel}</span></div>
+                        </div>
+                        <span class="${sCol} text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border shadow-sm whitespace-nowrap">${u.status}</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mb-3 font-mono bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+                        <span>In: ${u.join_date ? u.join_date.split(' ')[0] : 'N/A'}</span>
+                        <span class="font-bold text-gray-700">Out: ${u.expiry === 'lifetime' ? '∞' : (u.expiry ? u.expiry.split(' ')[0] : 'N/A')}</span>
+                    </div>
+                    <div class="flex flex-wrap items-center border-t border-gray-100 pt-3">
+                        ${btns}
+                    </div>
+                </div>`;
+            });
+        }
+
+        function renderStats() {
+            const chanFilter = document.getElementById('stat-channel').value;
+            const dateFilter = document.getElementById('stat-date').value; 
+            let totalJoins = 0; let totalLeft = 0;
+            let groupedByDate = {};
+
+            rawData.users.forEach(u => {
+                if (chanFilter !== 'ALL' && u.channel !== chanFilter) return;
+                const dateOnly = u.join_date ? u.join_date.split(' ')[0] : 'Unknown';
+                if (dateFilter && dateOnly !== dateFilter) return;
+                if (!groupedByDate[dateOnly]) groupedByDate[dateOnly] = { joins: 0, left: 0, channels: {} };
+                
+                groupedByDate[dateOnly].joins++;
+                totalJoins++;
+                
+                const isLeft = ['REVOKED', 'LEFT EARLY', 'LEFT', 'EXPIRED'].includes(u.status);
+                if (isLeft) { groupedByDate[dateOnly].left++; totalLeft++; }
+
+                if(!groupedByDate[dateOnly].channels[u.channel]) { groupedByDate[dateOnly].channels[u.channel] = { joins: 0, left: 0 }; }
+                groupedByDate[dateOnly].channels[u.channel].joins++;
+                if(isLeft) groupedByDate[dateOnly].channels[u.channel].left++;
+            });
+
+            document.getElementById('stat-total').innerText = totalJoins;
+            document.getElementById('stat-active').innerText = (totalJoins - totalLeft);
+            document.getElementById('stat-left').innerText = totalLeft;
+
+            const sBody = document.getElementById('stats-container');
+            sBody.innerHTML = '';
+            
+            const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
+            const sTot = Math.ceil(sortedDates.length / state.perPage) || 1;
+            if (state.statsPage > sTot) state.statsPage = sTot;
+            
+            const sStart = (state.statsPage - 1) * state.perPage;
+            const pDates = sortedDates.slice(sStart, sStart + state.perPage);
+
+            document.getElementById('stats-page-info').innerText = `${state.statsPage}/${sTot}`;
+            document.getElementById('stats-prev').disabled = state.statsPage <= 1;
+            document.getElementById('stats-next').disabled = state.statsPage >= sTot;
+            
+            if (pDates.length === 0) {
+                sBody.innerHTML = `<div class="text-center text-gray-400 text-sm py-4 font-medium">No data found for this filter.</div>`;
+                return;
+            }
+
+            pDates.forEach(date => {
+                const dayData = groupedByDate[date];
+                let channelsHTML = '';
+                for (const [chanName, counts] of Object.entries(dayData.channels)) {
+                    channelsHTML += `
+                        <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+                            <span class="text-xs font-semibold text-gray-700 truncate pr-2">${chanName}</span>
+                            <span class="text-xs font-mono whitespace-nowrap bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                                <span class="text-green-600 font-bold">+${counts.joins}</span> / 
+                                <span class="text-red-500 font-bold">-${counts.left}</span>
+                            </span>
+                        </div>
+                    `;
+                }
+
+                sBody.innerHTML += `
+                <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-3">
+                    <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                        <span class="font-bold text-sm text-gray-800">${date === 'Unknown' ? 'Unknown Date' : new Date(date).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'})}</span>
+                        <div class="text-xs font-bold bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100">Total: ${dayData.joins}</div>
+                    </div>
+                    <div class="flex flex-col">${channelsHTML}</div>
+                </div>`;
+            });
+        }
+
+        function changePage(type, dir) { 
+            if(type === 'links') state.linksPage += dir; 
+            if(type === 'users') state.usersPage += dir; 
+            if(type === 'stats') { state.statsPage += dir; renderStats(); return; }
+            renderTables(); 
+        }
+
+        async function generateLink() { const c = document.getElementById('sel-channel').value, d = document.getElementById('sel-duration').value, q = document.getElementById('gen-quantity').value, m = document.getElementById('gen-max-uses').value; if(!c) return showToast("⚠️ Select channel"); showToast("⏳ Generating..."); const res = await fetch('/api/generate_link', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({channel_id: c, duration: d, quantity: q, max_uses: m}) }); const out = await res.json(); if(out.status === 'success') { copyToClipboard(out.links.join('\n'), true); showToast(`✅ ${out.links.length} Link(s) Copied!`); fetchData(); } }
+        async function addChannel() { const id = document.getElementById('chan-id').value; if(!id) return showToast("⚠️ Enter Channel ID"); showToast("⏳ Adding..."); const res = await fetch('/api/add_channel', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({channel_id: id}) }); const data = await res.json(); if(data.status === 'success') { document.getElementById('chan-id').value = ""; fetchData(); showToast("✅ Channel Saved"); } else { showToast(`❌ ${data.message}`); } }
+        async function deleteLink(id) { if(confirm("Delete link?")) { await fetch(`/api/action/link/delete/${id}`, {method: 'POST'}); fetchData(); showToast("🗑️ Deleted"); } }
+        async function revokeUser(id) { if(confirm("Kick user & send Farewell DM?")) { await fetch(`/api/action/user/revoke/${id}`, {method: 'POST'}); fetchData(); showToast("👢 Kicked"); } }
+        async function extendUser(id, days) { const daysParam = (days === 'lifetime') ? 'lifetime' : parseInt(days); if(confirm(`Extend user by ${daysParam === 'lifetime' ? 'a Lifetime' : daysParam + ' days'}?`)) { await fetch(`/api/action/user/extend/${id}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({days: daysParam}) }); fetchData(); showToast("✅ Extended"); } }
+
+        verifyUser().then(() => { fetchData(); fetchBotInfo(); });
+    </script>
+</body>
+</html>

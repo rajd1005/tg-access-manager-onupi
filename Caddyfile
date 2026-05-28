@@ -1,0 +1,3 @@
+tgacc.rdalgo.in {
+    reverse_proxy web_dashboard:8000
+}
