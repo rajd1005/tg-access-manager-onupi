@@ -183,17 +183,20 @@
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl border border-gray-100 card-shadow overflow-hidden lg:sticky lg:top-20">
+                    <div class="lg:sticky lg:top-20">
+                    <div class="bg-white rounded-2xl border border-gray-100 card-shadow overflow-hidden">
 
                         <!-- Price Banner (desktop only; mobile uses sticky footer) -->
-                        <div class="gradient-bg px-4 py-3 text-white hidden lg:block">
-                            <p class="text-xs font-bold uppercase tracking-[0.15em] opacity-80 mb-1">Total Amount</p>
-                            <div class="flex items-baseline gap-2.5">
-                                <p id="final-price" class="text-3xl font-black tracking-tighter font-mono">₹0.00</p>
-                                <p id="original-price-display" class="text-sm font-bold line-through opacity-60 hidden"></p>
-                                <span id="discount-pct-badge" class="text-xs font-black bg-white/25 px-2 py-0.5 rounded-full hidden"></span>
+                        <div class="bg-gradient-to-br from-indigo-600 to-purple-700 px-4 py-2.5 hidden lg:block">
+                            <div class="flex items-center justify-between mb-0.5">
+                                <p class="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-200">Total Amount</p>
+                                <p id="duration-badge" class="text-[10px] font-semibold text-indigo-300 hidden"></p>
                             </div>
-                            <p id="duration-badge" class="text-xs font-semibold opacity-70 mt-0.5 hidden"></p>
+                            <div class="flex items-baseline gap-2 flex-wrap">
+                                <p id="final-price" class="text-2xl font-black tracking-tight font-mono text-white">₹0.00</p>
+                                <p id="original-price-display" class="text-xs font-semibold line-through text-indigo-300 hidden"></p>
+                                <span id="discount-pct-badge" class="text-[10px] font-black bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full hidden"></span>
+                            </div>
                         </div>
 
                         <!-- Tier Selector (shown when plan has multiple tiers) -->
@@ -251,6 +254,7 @@
                             <p class="text-center text-[10px] text-gray-400 font-medium hidden lg:block">🔐 Your information is encrypted &amp; secure</p>
                         </div>
                     </div>
+                    </div>
                 </div>
 
             </div>
@@ -263,19 +267,22 @@
     </div>
 
     <!-- Mobile Sticky Bottom Bar -->
-    <div class="mobile-sticky-bar bg-white border-t border-gray-200 px-4 py-2.5" style="box-shadow: 0 -4px 16px rgba(0,0,0,0.08);">
-        <div class="flex items-center justify-between gap-3 max-w-lg mx-auto">
+    <div class="mobile-sticky-bar bg-white border-t border-gray-100 px-3 py-2" style="box-shadow: 0 -4px 20px rgba(0,0,0,0.1);">
+        <div class="flex items-center justify-between gap-2.5 max-w-lg mx-auto">
             <div class="min-w-0 flex-1">
-                <div class="flex items-baseline gap-2">
-                    <p id="mobile-price" class="text-xl font-black text-indigo-700 font-mono tracking-tight leading-tight">₹0.00</p>
-                    <p id="mobile-original-price" class="text-sm font-bold line-through text-gray-400 hidden"></p>
-                    <span id="mobile-discount-badge" class="text-[10px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full hidden"></span>
+                <p id="mobile-plan-name" class="text-[10px] text-gray-400 font-bold truncate hidden leading-none mb-0.5"></p>
+                <div class="flex items-baseline gap-1.5 flex-wrap">
+                    <p id="mobile-price" class="text-lg font-black text-indigo-700 font-mono tracking-tight leading-tight">₹0.00</p>
+                    <p id="mobile-original-price" class="text-xs font-semibold line-through text-gray-400 hidden"></p>
+                    <span id="mobile-discount-badge" class="text-[9px] font-black text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full hidden"></span>
                 </div>
-                <p id="mobile-duration" class="text-[10px] text-gray-500 font-semibold hidden leading-tight"></p>
-                <p id="mobile-coupon-info" class="text-[10px] text-emerald-600 font-bold hidden leading-tight"></p>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <p id="mobile-duration" class="text-[10px] text-gray-500 font-semibold hidden leading-tight"></p>
+                    <p id="mobile-coupon-info" class="text-[10px] text-emerald-600 font-bold hidden leading-tight"></p>
+                </div>
             </div>
-            <button id="mobile-pay-btn" onclick="handleMobilePayBtn()" class="gradient-btn shrink-0 text-white font-black px-6 py-3 rounded-xl text-sm uppercase tracking-wider active:scale-95 transition" style="box-shadow:0 4px 14px rgba(102,126,234,0.4);">
-                Pay Now
+            <button id="mobile-pay-btn" onclick="handleMobilePayBtn()" class="gradient-btn shrink-0 text-white font-black px-5 py-2.5 rounded-xl text-sm active:scale-95 transition whitespace-nowrap" style="box-shadow:0 4px 12px rgba(102,126,234,0.4);">
+                <span id="mobile-btn-text">Next →</span>
             </button>
         </div>
     </div>
@@ -372,9 +379,10 @@
             mobileStep = 2;
             document.getElementById('mobile-step-1').classList.add('hidden');
             document.getElementById('mobile-step-2').classList.remove('hidden');
-            // Show store info in step 2
             const step2Store = document.getElementById('store-info-step2');
             if (step2Store) step2Store.classList.remove('hidden');
+            const btnText = document.getElementById('mobile-btn-text');
+            if (btnText) btnText.innerText = 'Pay Now';
             window.scrollTo(0, 0);
         }
 
@@ -383,6 +391,8 @@
             mobileStep = 1;
             document.getElementById('mobile-step-2').classList.add('hidden');
             document.getElementById('mobile-step-1').classList.remove('hidden');
+            const btnText = document.getElementById('mobile-btn-text');
+            if (btnText) btnText.innerText = 'Next →';
             window.scrollTo(0, 0);
         }
 
@@ -424,6 +434,8 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     document.getElementById('plan-name').innerText = data.plan_name;
+                    const mobilePlanNameEl = document.getElementById('mobile-plan-name');
+                    if (mobilePlanNameEl) { mobilePlanNameEl.innerText = data.plan_name; mobilePlanNameEl.classList.remove('hidden'); }
 
                     const channelBadge = document.getElementById('channel-name');
                     channelBadge.innerText = data.type === 'TG_PLAN' ? data.channel_name : 'Payment Link';
@@ -558,7 +570,7 @@
                 const origHtml = t.original_price > 0 && t.original_price > t.price
                     ? `<span class="line-through text-white/50 text-sm">₹${t.original_price}</span>` : '';
                 const pct = t.original_price > 0 && t.original_price > t.price
-                    ? Math.round((t.original_price - t.price) / t.original_price * 100) : 0;
+                    ? Math.round(((t.original_price - t.price) / t.original_price * 100) * 10) / 10 : 0;
                 const pctBadge = pct > 0 ? `<span class="bg-white/20 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1">${pct}% OFF</span>` : '';
                 const durText = t.days == 0 ? 'Lifetime' : `${t.days} Days`;
                 const div = document.createElement('label');
@@ -635,9 +647,7 @@
             const s1price = document.getElementById('step1-final-price');
             if (s1price) s1price.innerText = formatted;
 
-            // Compute effective original (max of original_price and pre-discount base)
             const effOriginal = original_price > 0 && original_price > current_price ? original_price : 0;
-            let pct = 0;
 
             const origEl = document.getElementById('original-price-display');
             const discPctEl = document.getElementById('discount-pct-badge');
@@ -649,13 +659,26 @@
             const mobCoupon = document.getElementById('mobile-coupon-info');
 
             if (effOriginal > 0) {
-                pct = Math.round((effOriginal - current_price) / effOriginal * 100);
+                // Combined discount from original → final (includes coupon), shown with 1 decimal
+                const rawPct = (effOriginal - final) / effOriginal * 100;
+                const pct = Math.round(rawPct * 10) / 10;
+                const pctStr = `${pct}% OFF`;
                 origEl.innerText = `₹${effOriginal.toFixed(2)}`; origEl.classList.remove('hidden');
-                discPctEl.innerText = `${pct}% OFF`; discPctEl.classList.remove('hidden');
+                discPctEl.innerText = pctStr; discPctEl.classList.remove('hidden');
                 if (mobOrig) { mobOrig.innerText = `₹${effOriginal.toFixed(2)}`; mobOrig.classList.remove('hidden'); }
                 if (s1orig) { s1orig.innerText = `₹${effOriginal.toFixed(2)}`; s1orig.classList.remove('hidden'); }
-                if (s1badge) { s1badge.innerText = `${pct}% OFF`; s1badge.classList.remove('hidden'); }
-                if (mobDiscBadge) { mobDiscBadge.innerText = `${pct}% OFF`; mobDiscBadge.classList.remove('hidden'); }
+                if (s1badge) { s1badge.innerText = pctStr; s1badge.classList.remove('hidden'); }
+                if (mobDiscBadge) { mobDiscBadge.innerText = pctStr; mobDiscBadge.classList.remove('hidden'); }
+            } else if (discount > 0) {
+                // Only coupon discount — show base price struck through
+                const pct = Math.round(discount * 10) / 10;
+                const pctStr = `${pct}% OFF`;
+                origEl.innerText = `₹${current_price.toFixed(2)}`; origEl.classList.remove('hidden');
+                discPctEl.innerText = pctStr; discPctEl.classList.remove('hidden');
+                if (mobOrig) { mobOrig.innerText = `₹${current_price.toFixed(2)}`; mobOrig.classList.remove('hidden'); }
+                if (s1orig) { s1orig.innerText = `₹${current_price.toFixed(2)}`; s1orig.classList.remove('hidden'); }
+                if (s1badge) { s1badge.innerText = pctStr; s1badge.classList.remove('hidden'); }
+                if (mobDiscBadge) { mobDiscBadge.innerText = pctStr; mobDiscBadge.classList.remove('hidden'); }
             } else {
                 origEl.classList.add('hidden'); discPctEl.classList.add('hidden');
                 if (mobOrig) mobOrig.classList.add('hidden');
@@ -664,7 +687,7 @@
                 if (mobDiscBadge) mobDiscBadge.classList.add('hidden');
             }
 
-            // Show coupon discount info
+            // Coupon info text
             if (discount > 0) {
                 const couponText = `🏷️ ${discount}% coupon applied`;
                 if (s1coupon) { s1coupon.innerText = couponText; s1coupon.classList.remove('hidden'); }

@@ -676,6 +676,10 @@
                     </div>
 
                     <h2 class="text-sm font-black text-green-800 border-b pb-2 mb-3 mt-8">🏷️ Agent Subscription Plans (B2B)</h2>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 flex items-start gap-2">
+                        <span class="text-base shrink-0">💡</span>
+                        <p class="text-xs text-blue-700 font-semibold leading-relaxed">To enable <b>Offline Payment (WhatsApp approval)</b> for B2B plans, set the Payment Gateway to <b>Offline</b> in your <button onclick="showSettingsTab('set-b2c-upi')" class="underline font-black hover:text-blue-900 transition">Store Setup &amp; Webhook</button> section.</p>
+                    </div>
                     <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4 space-y-3">
                         <h3 class="text-sm font-bold text-gray-700 border-b pb-2" id="plan-editor-title">Add New Plan</h3>
                         <input type="hidden" id="plan-add-id">
@@ -777,6 +781,15 @@
                 if(fallbackBtn) {
                     fallbackBtn.classList.add('bg-blue-50', 'text-blue-700', 'font-bold');
                     fallbackBtn.classList.remove('text-gray-600', 'font-semibold');
+                }
+            }
+
+            // Auto-add one tier row when opening the plans form in "new plan" mode
+            if (tabId === 'set-b2c-plans') {
+                const planId = document.getElementById('b2c-plan-id').value;
+                const tiersContainer = document.getElementById('plan-tiers-container');
+                if (!planId && tiersContainer && tiersContainer.children.length === 0) {
+                    addPlanTier();
                 }
             }
         }
@@ -1210,6 +1223,7 @@
                     document.getElementById('b2c-plan-original-price').value = '';
                     document.getElementById('b2c-plan-discount-badge').classList.add('hidden');
                     document.getElementById('plan-tiers-container').innerHTML = '';
+                    addPlanTier();
                     clearQuillEditor(planDescEditor);
                     document.getElementById('b2c-plan-free-auth').value = '0';
                     document.getElementById('b2c-plan-extra-emails').value = '';
