@@ -6,8 +6,10 @@
     {% if seo.site_title %}<title id="doc-title">{{ seo.site_title }}</title>{% else %}<title id="doc-title">TG Manager</title>{% endif %}
     {% if seo.site_tagline %}<meta name="description" content="{{ seo.site_tagline }}">{% endif %}
     {% if seo.site_icon %}<link rel="icon" id="doc-favicon" href="{{ seo.site_icon }}">{% endif %}
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
     <style>
         ::-webkit-scrollbar { width: 0px; background: transparent; }
         body { -webkit-tap-highlight-color: transparent; }
@@ -15,6 +17,13 @@
         details > summary::-webkit-details-marker { display: none; }
         .spinner { border: 3px solid rgba(0,0,0,0.1); border-left-color: #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .ql-toolbar.ql-snow { border-radius: 6px 6px 0 0; border-color: #d1d5db; background: #f9fafb; padding: 6px 8px; }
+        .ql-container.ql-snow { border-radius: 0 0 6px 6px; border-color: #d1d5db; font-size: 0.875rem; }
+        .ql-editor { min-height: 110px; max-height: 280px; overflow-y: auto; }
+        .ql-editor.ql-blank::before { color: #9ca3af; font-style: normal; font-size: 0.8rem; }
+        .ql-snow .ql-toolbar button { width: 26px; height: 26px; }
+        .banner-preview { aspect-ratio: 3/1; min-height: 80px; background: linear-gradient(135deg,#f3f4f6,#e5e7eb); }
+        .banner-preview img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 h-[100dvh] flex flex-col overflow-hidden relative">
@@ -305,15 +314,17 @@
                             </div>
                         </div>
                         
-                        <label class="text-sm font-bold text-gray-700 block -mb-2">Plan Details (Optional, 1 per line):</label>
-                        <textarea id="b2c-plan-desc" rows="3" placeholder="- Daily updates&#10;- Premium support" class="w-full p-2.5 text-sm border rounded bg-white"></textarea>
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Item Description <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
+                        <div id="b2c-plan-desc-editor" class="bg-white rounded-lg"></div>
+                        <input type="hidden" id="b2c-plan-desc">
 
-                        <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">Cover Image (Optional):</label>
-                        <div class="space-y-2">
-                            <div id="b2c-plan-img-preview-box" class="hidden relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50" style="max-height:160px">
-                                <img id="b2c-plan-img-preview" src="" alt="Preview" class="w-full object-cover" style="max-height:160px">
+                        <label class="text-sm font-bold text-gray-700 block mb-1 mt-3">Cover Banner Image <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
+                        <div class="space-y-1.5">
+                            <div id="b2c-plan-img-preview-box" class="hidden relative rounded-xl overflow-hidden border-2 border-indigo-200 banner-preview">
+                                <img id="b2c-plan-img-preview" src="" alt="Banner Preview">
                                 <button type="button" onclick="removePlanImage()" class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow transition">✕ Remove</button>
                             </div>
+                            <p class="text-[10px] text-indigo-500 font-semibold">📐 Recommended: 1200 × 400 px &nbsp;·&nbsp; 3:1 aspect ratio &nbsp;·&nbsp; JPG / PNG</p>
                             <input type="file" id="b2c-plan-img-file" accept="image/*" onchange="previewPlanImage()" class="w-full p-2 text-sm border rounded bg-white file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
                             <input type="hidden" id="b2c-plan-img-data" value="">
                         </div>
@@ -345,9 +356,10 @@
                         <label class="text-sm font-bold text-gray-700 block -mb-2">Payment Title:</label>
                         <input type="text" id="payment-link-title" placeholder="e.g. eBook Purchase" class="w-full p-2.5 text-sm border rounded bg-white">
                         
-                        <label class="text-sm font-bold text-gray-700 block -mb-2">Item Description:</label>
-                        <textarea id="payment-link-description" rows="3" placeholder="Detailed description of the item or service" class="w-full p-2.5 text-sm border rounded bg-white"></textarea>
-                        
+                        <label class="text-sm font-bold text-gray-700 block mb-1">Item Description <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
+                        <div id="payment-link-desc-editor" class="bg-white rounded-lg"></div>
+                        <input type="hidden" id="payment-link-description">
+
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="text-sm font-bold text-gray-700 block mb-1">Pricing Model:</label>
@@ -373,12 +385,13 @@
                             </div>
                         </div>
 
-                        <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">Cover Image (Optional):</label>
-                        <div class="space-y-2">
-                            <div id="payment-link-img-preview-box" class="hidden relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50" style="max-height:160px">
-                                <img id="payment-link-img-preview" src="" alt="Preview" class="w-full object-cover" style="max-height:160px">
+                        <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">Cover Banner Image <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
+                        <div class="space-y-1.5">
+                            <div id="payment-link-img-preview-box" class="hidden relative rounded-xl overflow-hidden border-2 border-blue-200 banner-preview">
+                                <img id="payment-link-img-preview" src="" alt="Banner Preview">
                                 <button type="button" onclick="removeLinkImage()" class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow transition">✕ Remove</button>
                             </div>
+                            <p class="text-[10px] text-blue-500 font-semibold">📐 Recommended: 1200 × 400 px &nbsp;·&nbsp; 3:1 aspect ratio &nbsp;·&nbsp; JPG / PNG</p>
                             <input type="file" id="payment-link-img-file" accept="image/*" onchange="previewLinkImage()" class="w-full p-2 text-sm border rounded bg-white file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                             <input type="hidden" id="payment-link-img-data" value="">
                         </div>
@@ -732,7 +745,7 @@
         }
         
         function autoResize(el) { if (!el) return; el.style.height = 'auto'; el.style.height = Math.max(el.scrollHeight, 60) + 'px'; }
-        function autoResizeAll() { ['msg-welcome', 'msg-welcome-btns', 'msg-farewell', 'msg-farewell-btns', 'global-menu-msg', 'global-menu-btns', 'b2c-plan-desc', 'payment-link-description'].forEach(id => { const el = document.getElementById(id); if (el) autoResize(el); }); }
+        function autoResizeAll() { ['msg-welcome', 'msg-welcome-btns', 'msg-farewell', 'msg-farewell-btns', 'global-menu-msg', 'global-menu-btns'].forEach(id => { const el = document.getElementById(id); if (el) autoResize(el); }); }
 
         let rawData = { links: [], users: [], channels: [], settings: {}, user_settings: {}, plans: [], b2c_plans: [], payment_links: [], coupons: [], b2c_txns: [], admin_txns: [] };
         let filteredLinks = [], filteredUsers = [];
@@ -803,7 +816,7 @@
                     document.getElementById('agent-upi-id').value = rawData.user_settings.agent_upi_id || "";
                 }
 
-                populateDropdowns(); applyFilters(); renderStats();
+                populateDropdowns(); applyFilters(); renderStats(); renderB2cUI();
                 if(currentUser && currentUser.role === 'ADMIN') { fetchAgents(); renderAdminChannels(); fetchPlans(); fetchUpis(); renderAdminTxnsUI(); }
             } catch (e) { showToast("⚠️ Error connecting to server"); }
         }
@@ -851,7 +864,7 @@
 
             document.getElementById('b2c-plan-price').value = price;
             document.getElementById('b2c-plan-days').value = days;
-            document.getElementById('b2c-plan-desc').value = desc.replace(/\\n/g, '\n');
+            loadQuillContent(planDescEditor, desc);
             document.getElementById('b2c-plan-free-auth').value = allowFree || '0';
             document.getElementById('b2c-plan-extra-emails').value = extraEmails || '';
             document.getElementById('b2c-plan-img-data').value = '';
@@ -871,7 +884,7 @@
         async function previewPlanImage() {
             const file = document.getElementById('b2c-plan-img-file').files[0];
             if (!file) return;
-            const b64 = await getBase64(file);
+            const b64 = await compressBannerImage(file);
             document.getElementById('b2c-plan-img-data').value = b64;
             document.getElementById('b2c-plan-img-preview').src = b64;
             document.getElementById('b2c-plan-img-preview-box').classList.remove('hidden');
@@ -881,6 +894,70 @@
             document.getElementById('b2c-plan-img-data').value = 'DELETE';
             document.getElementById('b2c-plan-img-file').value = '';
             document.getElementById('b2c-plan-img-preview-box').classList.add('hidden');
+        }
+
+        let planDescEditor = null, linkDescEditor = null;
+
+        function initEditors() {
+            const toolbarOptions = [
+                ['bold', 'italic', 'underline'],
+                [{ 'header': [2, 3, false] }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link'],
+                ['clean']
+            ];
+            planDescEditor = new Quill('#b2c-plan-desc-editor', {
+                theme: 'snow',
+                placeholder: 'Describe what customers get...',
+                modules: { toolbar: toolbarOptions }
+            });
+            linkDescEditor = new Quill('#payment-link-desc-editor', {
+                theme: 'snow',
+                placeholder: 'Describe what the customer receives...',
+                modules: { toolbar: toolbarOptions }
+            });
+        }
+
+        function loadQuillContent(editor, text) {
+            if (!editor) return;
+            if (!text) { editor.setText(''); return; }
+            const clean = text.replace(/\\n/g, '\n');
+            if (clean.trim().startsWith('<')) {
+                editor.root.innerHTML = clean;
+            } else {
+                editor.root.innerHTML = clean.split('\n').map(l => `<p>${l || '<br>'}</p>`).join('');
+            }
+        }
+
+        function getQuillContent(editor) {
+            if (!editor) return '';
+            const html = editor.root.innerHTML;
+            return (html === '<p><br></p>' || html === '') ? '' : html;
+        }
+
+        function clearQuillEditor(editor) {
+            if (editor) editor.setText('');
+        }
+
+        function compressBannerImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const MAX_W = 1200, MAX_H = 450;
+                        let w = img.width, h = img.height;
+                        if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
+                        if (h > MAX_H) { w = Math.round(w * MAX_H / h); h = MAX_H; }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.85));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
         }
 
         async function saveB2CPlan() {
@@ -893,7 +970,7 @@
 
             const p = document.getElementById('b2c-plan-price').value;
             const d = document.getElementById('b2c-plan-days').value;
-            const desc = document.getElementById('b2c-plan-desc').value;
+            const desc = getQuillContent(planDescEditor);
             const allowFree = document.getElementById('b2c-plan-free-auth').value;
             const extraEmails = document.getElementById('b2c-plan-extra-emails').value;
             const imgData = document.getElementById('b2c-plan-img-data').value;
@@ -912,7 +989,8 @@
                 const res = await fetch('/api/b2c/plans/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
                 if((await res.json()).status === 'success') {
                     document.getElementById('b2c-plan-editor-title').innerText = "Add New Plan";
-                    document.getElementById('b2c-plan-id').value = ''; document.getElementById('b2c-plan-name').value = ''; document.getElementById('b2c-plan-price').value = ''; document.getElementById('b2c-plan-days').value = ''; document.getElementById('b2c-plan-desc').value = '';
+                    document.getElementById('b2c-plan-id').value = ''; document.getElementById('b2c-plan-name').value = ''; document.getElementById('b2c-plan-price').value = ''; document.getElementById('b2c-plan-days').value = '';
+                    clearQuillEditor(planDescEditor);
                     document.getElementById('b2c-plan-free-auth').value = '0';
                     document.getElementById('b2c-plan-extra-emails').value = '';
                     document.getElementById('b2c-plan-img-data').value = '';
@@ -953,7 +1031,7 @@
             document.getElementById('payment-link-editor-title').innerText = "Edit Link";
             document.getElementById('payment-link-id').value = id;
             document.getElementById('payment-link-title').value = title;
-            document.getElementById('payment-link-description').value = desc.replace(/\\n/g, '\n');
+            loadQuillContent(linkDescEditor, desc);
             document.getElementById('payment-link-type').value = type;
             document.getElementById('payment-link-amount').value = amount;
             document.getElementById('payment-link-discount').value = discount;
@@ -978,7 +1056,7 @@
         async function previewLinkImage() {
             const file = document.getElementById('payment-link-img-file').files[0];
             if (!file) return;
-            const b64 = await getBase64(file);
+            const b64 = await compressBannerImage(file);
             document.getElementById('payment-link-img-data').value = b64;
             document.getElementById('payment-link-img-preview').src = b64;
             document.getElementById('payment-link-img-preview-box').classList.remove('hidden');
@@ -994,7 +1072,7 @@
             const btn = document.getElementById('payment-link-save-btn');
             const id = document.getElementById('payment-link-id').value;
             const t = document.getElementById('payment-link-title').value;
-            const desc = document.getElementById('payment-link-description').value;
+            const desc = getQuillContent(linkDescEditor);
             const type = document.getElementById('payment-link-type').value;
             const a = document.getElementById('payment-link-amount').value;
             const d = document.getElementById('payment-link-discount').value;
@@ -1020,7 +1098,7 @@
                     document.getElementById('payment-link-editor-title').innerText = "Create Link";
                     document.getElementById('payment-link-id').value = '';
                     document.getElementById('payment-link-title').value = '';
-                    document.getElementById('payment-link-description').value = '';
+                    clearQuillEditor(linkDescEditor);
                     document.getElementById('payment-link-type').value = 'FIXED';
                     document.getElementById('payment-link-amount').value = '';
                     document.getElementById('payment-link-discount').value = '';
@@ -1965,6 +2043,7 @@
         async function revokeUser(id) { if(confirm("Kick user & send Farewell DM?")) { await fetch(`/api/action/user/revoke/${id}`, {method: 'POST'}); fetchData(); showToast("👢 Kicked"); } }
         async function extendUser(id, days) { const daysParam = (days === 'lifetime') ? 'lifetime' : parseInt(days); if(confirm(`Extend user by ${daysParam === 'lifetime' ? 'a Lifetime' : daysParam + ' days'}?`)) { await fetch(`/api/action/user/extend/${id}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({days: daysParam}) }); fetchData(); showToast("✅ Extended"); } }
 
+        document.addEventListener('DOMContentLoaded', initEditors);
         verifyUser().then(() => { fetchData(); fetchBotInfo(); });
     </script>
 </body>
