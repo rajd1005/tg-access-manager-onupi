@@ -89,6 +89,12 @@ def init_auth_db():
     try: cursor.execute("ALTER TABLE payment_links ADD COLUMN extra_emails TEXT DEFAULT ''")
     except: pass
 
+    # --- Cover Images for Plans & Payment Links ---
+    try: cursor.execute("ALTER TABLE customer_plans ADD COLUMN has_image INTEGER DEFAULT 0")
+    except: pass
+    try: cursor.execute("ALTER TABLE payment_links ADD COLUMN has_image INTEGER DEFAULT 0")
+    except: pass
+
     # Generate webhook keys for any existing users that don't have one
     cursor.execute("SELECT id FROM web_users WHERE webhook_key = '' OR webhook_key IS NULL")
     for row in cursor.fetchall():
@@ -733,7 +739,7 @@ async def api_public_checkout_plan(plan_id: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT p.plan_name, p.price, p.duration_days, p.description, p.is_active, u.agent_upi_id, p.channel_id, p.agent_id FROM customer_plans p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
+    cursor.execute("SELECT p.plan_name, p.price, p.duration_days, p.description, p.is_active, u.agent_upi_id, p.channel_id, p.agent_id, p.has_image FROM customer_plans p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
     row = cursor.fetchone()
     if row and row[4] == 1:
         # Fetch all channel names
@@ -745,15 +751,17 @@ async def api_public_checkout_plan(plan_id: str):
             channel_name_str = " & ".join(names) if names else "Multiple Channels"
         else:
             channel_name_str = "Telegram Channel"
-            
+
+        image_url = f"/api/image/plan_image_{plan_id}.jpg" if row[8] else None
         conn.close()
-        return {"status": "success", "plan_name": row[0], "price": row[1], "duration_days": row[2], "description": row[3], "agent_upi_id": row[5], "channel_name": channel_name_str, "agent_id": row[7], "type": "TG_PLAN"}
-    
-    cursor.execute("SELECT p.title, p.amount, p.type, p.redirect_url, p.is_active, u.agent_upi_id, p.agent_id, p.description FROM payment_links p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
+        return {"status": "success", "plan_name": row[0], "price": row[1], "duration_days": row[2], "description": row[3], "agent_upi_id": row[5], "channel_name": channel_name_str, "agent_id": row[7], "type": "TG_PLAN", "image_url": image_url}
+
+    cursor.execute("SELECT p.title, p.amount, p.type, p.redirect_url, p.is_active, u.agent_upi_id, p.agent_id, p.description, p.has_image FROM payment_links p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
     row = cursor.fetchone()
     conn.close()
     if row and row[4] == 1:
-        return {"status": "success", "plan_name": row[0], "price": row[1], "link_type": row[2], "redirect_url": row[3], "agent_upi_id": row[5], "agent_id": row[6], "description": row[7], "type": "PAYMENT_LINK", "channel_name": "Payment Link"}
+        image_url = f"/api/image/link_image_{plan_id}.jpg" if row[8] else None
+        return {"status": "success", "plan_name": row[0], "price": row[1], "link_type": row[2], "redirect_url": row[3], "agent_upi_id": row[5], "agent_id": row[6], "description": row[7], "type": "PAYMENT_LINK", "channel_name": "Payment Link", "image_url": image_url}
 
     return {"status": "error", "message": "Item not found or inactive."}
 
@@ -902,23 +910,37 @@ async def api_b2c_plans_save(req: Request, user: dict = Depends(get_current_user
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        # Parse and verify access for ALL selected channels
         channel_ids = [c.strip() for c in str(data['channel_id']).split(',') if c.strip()]
         for cid in channel_ids:
             if not verify_channel_access(cursor, cid, user):
                 return {"status": "error", "message": f"Unauthorized access to channel {cid}."}
-            
+
         dur = int(data['duration_days']) if data['duration_days'] else 0
         allow_free = int(data.get('allow_free_webhook', 0))
         extra_emails = data.get('extra_emails', '')
-        
+        image_data = data.get('image', None)
+
         if data.get('plan_id'):
-            conn.execute("UPDATE customer_plans SET plan_name=?, channel_id=?, price=?, duration_days=?, description=?, allow_free_webhook=?, extra_emails=? WHERE id=? AND agent_id=?", 
-                         (data['plan_name'], data['channel_id'], float(data['price']), dur, data['description'], allow_free, extra_emails, data['plan_id'], user['id']))
+            pid = data['plan_id']
+            img_path = f"/app/data/plan_image_{pid}.jpg"
+            has_image_update = ""
+            if image_data == "DELETE":
+                if os.path.exists(img_path): os.remove(img_path)
+                has_image_update = ", has_image=0"
+            elif image_data and image_data.startswith("data:image"):
+                with open(img_path, "wb") as f: f.write(base64.b64decode(image_data.split(",", 1)[1]))
+                has_image_update = ", has_image=1"
+            conn.execute(f"UPDATE customer_plans SET plan_name=?, channel_id=?, price=?, duration_days=?, description=?, allow_free_webhook=?, extra_emails=?{has_image_update} WHERE id=? AND agent_id=?",
+                         (data['plan_name'], data['channel_id'], float(data['price']), dur, data['description'], allow_free, extra_emails, pid, user['id']))
         else:
             plan_id = "PLN" + str(uuid.uuid4().hex)[:8].upper()
-            conn.execute("INSERT INTO customer_plans (id, agent_id, channel_id, plan_name, price, duration_days, description, allow_free_webhook, extra_emails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                         (plan_id, user['id'], data['channel_id'], data['plan_name'], float(data['price']), dur, data['description'], allow_free, extra_emails))
+            has_image = 0
+            if image_data and image_data.startswith("data:image"):
+                img_path = f"/app/data/plan_image_{plan_id}.jpg"
+                with open(img_path, "wb") as f: f.write(base64.b64decode(image_data.split(",", 1)[1]))
+                has_image = 1
+            conn.execute("INSERT INTO customer_plans (id, agent_id, channel_id, plan_name, price, duration_days, description, allow_free_webhook, extra_emails, has_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                         (plan_id, user['id'], data['channel_id'], data['plan_name'], float(data['price']), dur, data['description'], allow_free, extra_emails, has_image))
         conn.commit()
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
@@ -938,15 +960,30 @@ async def api_b2c_payment_links_save(req: Request, user: dict = Depends(get_curr
     try:
         allow_free = int(data.get('allow_free_webhook', 0))
         extra_emails = data.get('extra_emails', '')
-        
+        image_data = data.get('image', None)
+
         if data.get('link_id'):
-            conn.execute("UPDATE payment_links SET title=?, type=?, amount=?, discount_code=?, redirect_url=?, description=?, allow_free_webhook=?, extra_emails=? WHERE id=? AND agent_id=?", 
-                         (data['title'], data['type'], float(data['amount'] or 0), data.get('discount_code', ''), data.get('redirect_url', ''), data.get('description', ''), allow_free, extra_emails, data['link_id'], user['id']))
+            lid = data['link_id']
+            img_path = f"/app/data/link_image_{lid}.jpg"
+            has_image_update = ""
+            if image_data == "DELETE":
+                if os.path.exists(img_path): os.remove(img_path)
+                has_image_update = ", has_image=0"
+            elif image_data and image_data.startswith("data:image"):
+                with open(img_path, "wb") as f: f.write(base64.b64decode(image_data.split(",", 1)[1]))
+                has_image_update = ", has_image=1"
+            conn.execute(f"UPDATE payment_links SET title=?, type=?, amount=?, discount_code=?, redirect_url=?, description=?, allow_free_webhook=?, extra_emails=?{has_image_update} WHERE id=? AND agent_id=?",
+                         (data['title'], data['type'], float(data['amount'] or 0), data.get('discount_code', ''), data.get('redirect_url', ''), data.get('description', ''), allow_free, extra_emails, lid, user['id']))
         else:
             link_id = "PAY" + str(uuid.uuid4().hex)[:8].upper()
             now = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
-            conn.execute("INSERT INTO payment_links (id, agent_id, title, type, amount, discount_code, redirect_url, description, allow_free_webhook, created_at, extra_emails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                         (link_id, user['id'], data['title'], data['type'], float(data['amount'] or 0), data.get('discount_code', ''), data.get('redirect_url', ''), data.get('description', ''), allow_free, now, extra_emails))
+            has_image = 0
+            if image_data and image_data.startswith("data:image"):
+                img_path = f"/app/data/link_image_{link_id}.jpg"
+                with open(img_path, "wb") as f: f.write(base64.b64decode(image_data.split(",", 1)[1]))
+                has_image = 1
+            conn.execute("INSERT INTO payment_links (id, agent_id, title, type, amount, discount_code, redirect_url, description, allow_free_webhook, created_at, extra_emails, has_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                         (link_id, user['id'], data['title'], data['type'], float(data['amount'] or 0), data.get('discount_code', ''), data.get('redirect_url', ''), data.get('description', ''), allow_free, now, extra_emails, has_image))
         conn.commit()
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
@@ -1275,11 +1312,11 @@ async def api_get_data(user: dict = Depends(get_current_user)):
     channels = [{"id": r[0], "name": r[1], "bot_status": r[2], "welcome": r[3] or "", "farewell": r[4] or "", "w_btns": r[5] or "", "f_btns": r[6] or "", "w_img": bool(r[7]), "f_img": bool(r[8])} for r in cursor.fetchall()]
     
     # B2C Data
-    cursor.execute("SELECT id, plan_name, price, duration_days, description, is_active, channel_id, allow_free_webhook, extra_emails FROM customer_plans WHERE agent_id=?", (user['id'],))
-    b2c_plans = [{"id": r[0], "plan_name": r[1], "price": r[2], "duration_days": r[3], "description": r[4], "is_active": r[5], "channel_id": r[6], "allow_free_webhook": r[7] or 0, "extra_emails": r[8] or ""} for r in cursor.fetchall()]
-    
-    cursor.execute("SELECT id, title, type, amount, discount_code, redirect_url, is_active, description, allow_free_webhook, extra_emails FROM payment_links WHERE agent_id=?", (user['id'],))
-    payment_links = [{"id": r[0], "title": r[1], "type": r[2], "amount": r[3], "discount_code": r[4] or "", "redirect_url": r[5] or "", "is_active": r[6], "description": r[7] or "", "allow_free_webhook": r[8] or 0, "extra_emails": r[9] or ""} for r in cursor.fetchall()]
+    cursor.execute("SELECT id, plan_name, price, duration_days, description, is_active, channel_id, allow_free_webhook, extra_emails, has_image FROM customer_plans WHERE agent_id=?", (user['id'],))
+    b2c_plans = [{"id": r[0], "plan_name": r[1], "price": r[2], "duration_days": r[3], "description": r[4], "is_active": r[5], "channel_id": r[6], "allow_free_webhook": r[7] or 0, "extra_emails": r[8] or "", "has_image": r[9] or 0} for r in cursor.fetchall()]
+
+    cursor.execute("SELECT id, title, type, amount, discount_code, redirect_url, is_active, description, allow_free_webhook, extra_emails, has_image FROM payment_links WHERE agent_id=?", (user['id'],))
+    payment_links = [{"id": r[0], "title": r[1], "type": r[2], "amount": r[3], "discount_code": r[4] or "", "redirect_url": r[5] or "", "is_active": r[6], "description": r[7] or "", "allow_free_webhook": r[8] or 0, "extra_emails": r[9] or "", "has_image": r[10] or 0} for r in cursor.fetchall()]
     
     cursor.execute("SELECT id, code, discount_pct, max_uses, used_count, is_active, plan_id FROM coupons WHERE agent_id=?", (user['id'],))
     coupons = [{"id": r[0], "code": r[1], "discount_pct": r[2], "max_uses": r[3], "used_count": r[4], "is_active": r[5], "plan_id": r[6] or ""} for r in cursor.fetchall()]

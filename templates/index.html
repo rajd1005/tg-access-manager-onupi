@@ -307,7 +307,17 @@
                         
                         <label class="text-sm font-bold text-gray-700 block -mb-2">Plan Details (Optional, 1 per line):</label>
                         <textarea id="b2c-plan-desc" rows="3" placeholder="- Daily updates&#10;- Premium support" class="w-full p-2.5 text-sm border rounded bg-white"></textarea>
-                        
+
+                        <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">Cover Image (Optional):</label>
+                        <div class="space-y-2">
+                            <div id="b2c-plan-img-preview-box" class="hidden relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50" style="max-height:160px">
+                                <img id="b2c-plan-img-preview" src="" alt="Preview" class="w-full object-cover" style="max-height:160px">
+                                <button type="button" onclick="removePlanImage()" class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow transition">✕ Remove</button>
+                            </div>
+                            <input type="file" id="b2c-plan-img-file" accept="image/*" onchange="previewPlanImage()" class="w-full p-2 text-sm border rounded bg-white file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+                            <input type="hidden" id="b2c-plan-img-data" value="">
+                        </div>
+
                         <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">External Webhook Access:</label>
                         <select id="b2c-plan-free-auth" class="w-full p-2.5 text-sm border rounded bg-white font-bold mb-2">
                             <option value="0">Disabled (Payment Required)</option>
@@ -361,6 +371,16 @@
                                 <label class="text-sm font-bold text-gray-700 block mb-1">Specific Discount Code (Optional):</label>
                                 <input type="text" id="payment-link-discount" placeholder="Code" class="w-full p-2.5 text-sm border rounded bg-white font-bold uppercase">
                             </div>
+                        </div>
+
+                        <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">Cover Image (Optional):</label>
+                        <div class="space-y-2">
+                            <div id="payment-link-img-preview-box" class="hidden relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50" style="max-height:160px">
+                                <img id="payment-link-img-preview" src="" alt="Preview" class="w-full object-cover" style="max-height:160px">
+                                <button type="button" onclick="removeLinkImage()" class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow transition">✕ Remove</button>
+                            </div>
+                            <input type="file" id="payment-link-img-file" accept="image/*" onchange="previewLinkImage()" class="w-full p-2 text-sm border rounded bg-white file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            <input type="hidden" id="payment-link-img-data" value="">
                         </div>
 
                         <label class="text-sm font-bold text-gray-700 block mb-1 mt-2">External Webhook Access:</label>
@@ -818,61 +838,89 @@
             if((await res.json()).status === 'success') { showToast("✅ Saved!"); }
         }
 
-        function editB2cPlan(id, name, cid, price, days, desc, allowFree, extraEmails) {
+        function editB2cPlan(id, name, cid, price, days, desc, allowFree, extraEmails, hasImage) {
             document.getElementById('b2c-plan-editor-title').innerText = "Edit Plan";
             document.getElementById('b2c-plan-id').value = id;
             document.getElementById('b2c-plan-name').value = name;
-            
-            // Select multiple values
+
             const cSelect = document.getElementById('b2c-plan-channel');
             const cidArray = String(cid).split(',');
             for (let i = 0; i < cSelect.options.length; i++) {
                 cSelect.options[i].selected = cidArray.includes(cSelect.options[i].value);
             }
-            
+
             document.getElementById('b2c-plan-price').value = price;
             document.getElementById('b2c-plan-days').value = days;
             document.getElementById('b2c-plan-desc').value = desc.replace(/\\n/g, '\n');
             document.getElementById('b2c-plan-free-auth').value = allowFree || '0';
             document.getElementById('b2c-plan-extra-emails').value = extraEmails || '';
+            document.getElementById('b2c-plan-img-data').value = '';
+            document.getElementById('b2c-plan-img-file').value = '';
+            if (hasImage) {
+                const ts = Date.now();
+                document.getElementById('b2c-plan-img-preview').src = `/api/image/plan_image_${id}.jpg?t=${ts}`;
+                document.getElementById('b2c-plan-img-preview-box').classList.remove('hidden');
+            } else {
+                document.getElementById('b2c-plan-img-preview-box').classList.add('hidden');
+            }
             document.getElementById('b2c-plan-save-btn').innerText = "💾 Update Plan";
             document.getElementById('b2c-plan-save-btn').classList.replace('bg-teal-600', 'bg-blue-600');
             showSettingsTab('set-b2c-plans');
+        }
+
+        async function previewPlanImage() {
+            const file = document.getElementById('b2c-plan-img-file').files[0];
+            if (!file) return;
+            const b64 = await getBase64(file);
+            document.getElementById('b2c-plan-img-data').value = b64;
+            document.getElementById('b2c-plan-img-preview').src = b64;
+            document.getElementById('b2c-plan-img-preview-box').classList.remove('hidden');
+        }
+
+        function removePlanImage() {
+            document.getElementById('b2c-plan-img-data').value = 'DELETE';
+            document.getElementById('b2c-plan-img-file').value = '';
+            document.getElementById('b2c-plan-img-preview-box').classList.add('hidden');
         }
 
         async function saveB2CPlan() {
             const btn = document.getElementById('b2c-plan-save-btn');
             const id = document.getElementById('b2c-plan-id').value;
             const n = document.getElementById('b2c-plan-name').value;
-            
+
             const cSelect = document.getElementById('b2c-plan-channel');
             const c = Array.from(cSelect.selectedOptions).map(opt => opt.value).join(',');
-            
+
             const p = document.getElementById('b2c-plan-price').value;
             const d = document.getElementById('b2c-plan-days').value;
             const desc = document.getElementById('b2c-plan-desc').value;
             const allowFree = document.getElementById('b2c-plan-free-auth').value;
             const extraEmails = document.getElementById('b2c-plan-extra-emails').value;
-            
+            const imgData = document.getElementById('b2c-plan-img-data').value;
+
             if(!n || !c || !p || !d) return showToast("⚠️ Fill all required fields");
-            
+
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
             showToast("⏳ Saving...");
-            
+
             try {
                 const payload = {plan_name: n, channel_id: c, price: p, duration_days: d, description: desc, allow_free_webhook: allowFree, extra_emails: extraEmails};
                 if(id) payload.plan_id = id;
+                if(imgData) payload.image = imgData;
 
                 const res = await fetch('/api/b2c/plans/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-                if((await res.json()).status === 'success') { 
+                if((await res.json()).status === 'success') {
                     document.getElementById('b2c-plan-editor-title').innerText = "Add New Plan";
                     document.getElementById('b2c-plan-id').value = ''; document.getElementById('b2c-plan-name').value = ''; document.getElementById('b2c-plan-price').value = ''; document.getElementById('b2c-plan-days').value = ''; document.getElementById('b2c-plan-desc').value = '';
                     document.getElementById('b2c-plan-free-auth').value = '0';
                     document.getElementById('b2c-plan-extra-emails').value = '';
+                    document.getElementById('b2c-plan-img-data').value = '';
+                    document.getElementById('b2c-plan-img-file').value = '';
+                    document.getElementById('b2c-plan-img-preview-box').classList.add('hidden');
                     document.getElementById('b2c-plan-save-btn').innerText = "➕ Add Customer Plan";
                     document.getElementById('b2c-plan-save-btn').classList.replace('bg-blue-600', 'bg-teal-600');
-                    showToast("✅ Plan Saved!"); fetchData(); 
+                    showToast("✅ Plan Saved!"); fetchData();
                 }
             } finally {
                 btn.disabled = false;
@@ -901,7 +949,7 @@
             }
         }
 
-        function editPaymentLink(id, title, type, amount, discount, redirect, desc, allowFree, extraEmails) {
+        function editPaymentLink(id, title, type, amount, discount, redirect, desc, allowFree, extraEmails, hasImage) {
             document.getElementById('payment-link-editor-title').innerText = "Edit Link";
             document.getElementById('payment-link-id').value = id;
             document.getElementById('payment-link-title').value = title;
@@ -912,10 +960,34 @@
             document.getElementById('payment-link-redirect').value = redirect;
             document.getElementById('payment-link-free-auth').value = allowFree || '0';
             document.getElementById('payment-link-extra-emails').value = extraEmails || '';
+            document.getElementById('payment-link-img-data').value = '';
+            document.getElementById('payment-link-img-file').value = '';
+            if (hasImage) {
+                const ts = Date.now();
+                document.getElementById('payment-link-img-preview').src = `/api/image/link_image_${id}.jpg?t=${ts}`;
+                document.getElementById('payment-link-img-preview-box').classList.remove('hidden');
+            } else {
+                document.getElementById('payment-link-img-preview-box').classList.add('hidden');
+            }
             document.getElementById('payment-link-save-btn').innerText = "💾 Update Payment Link";
             document.getElementById('payment-link-save-btn').classList.replace('bg-blue-600', 'bg-teal-600');
             togglePaymentLinkType();
             showSettingsTab('set-b2c-links');
+        }
+
+        async function previewLinkImage() {
+            const file = document.getElementById('payment-link-img-file').files[0];
+            if (!file) return;
+            const b64 = await getBase64(file);
+            document.getElementById('payment-link-img-data').value = b64;
+            document.getElementById('payment-link-img-preview').src = b64;
+            document.getElementById('payment-link-img-preview-box').classList.remove('hidden');
+        }
+
+        function removeLinkImage() {
+            document.getElementById('payment-link-img-data').value = 'DELETE';
+            document.getElementById('payment-link-img-file').value = '';
+            document.getElementById('payment-link-img-preview-box').classList.add('hidden');
         }
 
         async function savePaymentLink() {
@@ -929,6 +1001,7 @@
             const r = document.getElementById('payment-link-redirect').value;
             const allowFree = document.getElementById('payment-link-free-auth').value;
             const extraEmails = document.getElementById('payment-link-extra-emails').value;
+            const imgData = document.getElementById('payment-link-img-data').value;
 
             if(!t) return showToast("⚠️ Title is required.");
             if(type === 'FIXED' && !a) return showToast("⚠️ Fixed links require an amount.");
@@ -936,10 +1009,11 @@
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
             showToast("⏳ Saving...");
-            
+
             try {
                 const payload = {title: t, description: desc, type: type, amount: a, discount_code: d, redirect_url: r, allow_free_webhook: allowFree, extra_emails: extraEmails};
                 if(id) payload.link_id = id;
+                if(imgData) payload.image = imgData;
 
                 const res = await fetch('/api/b2c/payment_links/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
                 if((await res.json()).status === 'success') {
@@ -953,10 +1027,13 @@
                     document.getElementById('payment-link-redirect').value = '';
                     document.getElementById('payment-link-free-auth').value = '0';
                     document.getElementById('payment-link-extra-emails').value = '';
+                    document.getElementById('payment-link-img-data').value = '';
+                    document.getElementById('payment-link-img-file').value = '';
+                    document.getElementById('payment-link-img-preview-box').classList.add('hidden');
                     document.getElementById('payment-link-save-btn').innerText = "➕ Generate Payment Link";
                     document.getElementById('payment-link-save-btn').classList.replace('bg-teal-600', 'bg-blue-600');
                     togglePaymentLinkType();
-                    showToast("✅ Link Saved!"); fetchData(); 
+                    showToast("✅ Link Saved!"); fetchData();
                 }
             } finally {
                 btn.disabled = false;
@@ -1055,12 +1132,19 @@
                 const durStr = p.duration_days == 0 ? 'Lifetime' : `${p.duration_days} Days`;
                 const safeDesc = p.description ? p.description.replace(/'/g, "\\'").replace(/\n/g, "\\n") : '';
                 const safeExtraEmails = p.extra_emails ? p.extra_emails.replace(/'/g, "\\'") : '';
+                const thumbHtml = p.has_image ? `<img src="/api/image/plan_image_${p.id}.jpg?t=${Date.now()}" class="w-12 h-12 rounded-lg object-cover border border-gray-200 shrink-0" alt="">` : `<div class="w-12 h-12 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-lg shrink-0">📦</div>`;
                 pCon.innerHTML += `
                 <div class="bg-white border border-gray-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm mb-3">
-                    <div class="flex justify-between items-center border-b border-gray-50 pb-2">
-                        <span class="text-sm font-bold text-teal-900">${p.plan_name} <span class="bg-teal-50 text-teal-700 px-2 py-0.5 rounded text-xs ml-2">₹${p.price} (${durStr})</span></span>
-                        <div class="flex gap-2">
-                            <button onclick="editB2cPlan('${p.id}', '${p.plan_name}', '${p.channel_id}', '${p.price}', '${p.duration_days}', '${safeDesc}', '${p.allow_free_webhook}', '${safeExtraEmails}')" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
+                    <div class="flex justify-between items-start gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            ${thumbHtml}
+                            <div class="min-w-0">
+                                <div class="text-sm font-bold text-teal-900 truncate">${p.plan_name}</div>
+                                <div class="text-xs text-gray-500 font-medium mt-0.5"><span class="bg-teal-50 text-teal-700 px-2 py-0.5 rounded">₹${p.price} · ${durStr}</span></div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button onclick="editB2cPlan('${p.id}', '${p.plan_name}', '${p.channel_id}', '${p.price}', '${p.duration_days}', '${safeDesc}', '${p.allow_free_webhook}', '${safeExtraEmails}', ${p.has_image ? 1 : 0})" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
                             <button onclick="deleteB2cPlan('${p.id}')" class="text-xs bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded transition hover:bg-red-100">Del</button>
                         </div>
                     </div>
@@ -1079,12 +1163,19 @@
                 const amtStr = pl.type === 'FLEXIBLE' ? 'Flexible' : `₹${pl.amount}`;
                 const safeDesc = pl.description ? pl.description.replace(/'/g, "\\'").replace(/\n/g, "\\n") : '';
                 const safeExtraEmailsLink = pl.extra_emails ? pl.extra_emails.replace(/'/g, "\\'") : '';
+                const thumbHtml = pl.has_image ? `<img src="/api/image/link_image_${pl.id}.jpg?t=${Date.now()}" class="w-12 h-12 rounded-lg object-cover border border-gray-200 shrink-0" alt="">` : `<div class="w-12 h-12 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-lg shrink-0">🔗</div>`;
                 plCon.innerHTML += `
                 <div class="bg-white border border-gray-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm mb-3">
-                    <div class="flex justify-between items-center border-b border-gray-50 pb-2">
-                        <span class="text-sm font-bold text-blue-900">${pl.title} <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs ml-2">${amtStr}</span></span>
-                        <div class="flex gap-2">
-                            <button onclick="editPaymentLink('${pl.id}', '${pl.title}', '${pl.type}', '${pl.amount}', '${pl.discount_code}', '${pl.redirect_url}', '${safeDesc}', '${pl.allow_free_webhook}', '${safeExtraEmailsLink}')" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
+                    <div class="flex justify-between items-start gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            ${thumbHtml}
+                            <div class="min-w-0">
+                                <div class="text-sm font-bold text-blue-900 truncate">${pl.title}</div>
+                                <div class="text-xs text-gray-500 font-medium mt-0.5"><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${amtStr}</span></div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button onclick="editPaymentLink('${pl.id}', '${pl.title}', '${pl.type}', '${pl.amount}', '${pl.discount_code}', '${pl.redirect_url}', '${safeDesc}', '${pl.allow_free_webhook}', '${safeExtraEmailsLink}', ${pl.has_image ? 1 : 0})" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
                             <button onclick="deletePaymentLink('${pl.id}')" class="text-xs bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded transition hover:bg-red-100">Del</button>
                         </div>
                     </div>
