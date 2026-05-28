@@ -16,21 +16,35 @@
         .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .gradient-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .gradient-btn:hover { background: linear-gradient(135deg, #5a67d8 0%, #6b3fa0 100%); }
-        .price-gradient { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .feature-item::before { content: '✓'; color: #10b981; font-weight: 900; margin-right: 8px; }
         input:focus { outline: none; }
         .input-field { transition: all 0.2s ease; }
         .input-field:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); background: white; }
         .card-shadow { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04); }
-        .hero-img { object-fit: cover; width: 100%; height: 100%; }
+        .hero-img { object-fit: cover; object-position: center; width: 100%; height: 100%; }
         details > summary { list-style: none; }
         details > summary::-webkit-details-marker { display: none; }
-        .trust-badge { background: rgba(255,255,255,0.7); backdrop-filter: blur(8px); }
-        .hero-container { aspect-ratio: 16/9; background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
-        @media (min-width: 1024px) { .hero-container { aspect-ratio: 16/7; } }
+        .hero-container { aspect-ratio: 3/1; background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
+        /* Description HTML styling (from Quill) */
+        .desc-content p { margin-bottom: 0.5rem; color: #4b5563; font-size: 0.875rem; line-height: 1.6; }
+        .desc-content p:last-child { margin-bottom: 0; }
+        .desc-content strong { font-weight: 700; color: #111827; }
+        .desc-content em { font-style: italic; }
+        .desc-content u { text-decoration: underline; }
+        .desc-content h2 { font-size: 1rem; font-weight: 800; color: #111827; margin-top: 0.75rem; margin-bottom: 0.25rem; }
+        .desc-content h3 { font-size: 0.875rem; font-weight: 700; color: #374151; margin-top: 0.5rem; margin-bottom: 0.25rem; }
+        .desc-content ul { list-style: none; padding: 0; margin: 0.25rem 0; }
+        .desc-content ul li { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem; color: #374151; font-size: 0.875rem; }
+        .desc-content ul li::before { content: '✓'; color: #10b981; font-weight: 900; flex-shrink: 0; }
+        .desc-content ol { padding-left: 1.25rem; margin: 0.25rem 0; }
+        .desc-content ol li { margin-bottom: 0.4rem; color: #374151; font-size: 0.875rem; }
+        .desc-content a { color: #6366f1; text-decoration: underline; }
+        /* Mobile step dots */
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 900; flex-shrink: 0; transition: all 0.3s; }
+        .step-dot-active { background: #6366f1; color: white; }
+        .step-dot-inactive { background: #e5e7eb; color: #9ca3af; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen" style="font-family: 'Inter', sans-serif;">
+<body class="bg-gray-50 min-h-screen">
 
     <!-- Sticky Header -->
     <header class="bg-white border-b border-gray-100 sticky top-0 z-50" style="box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
@@ -48,11 +62,27 @@
 
     <!-- INIT VIEW -->
     <div id="init-view">
+
+        <!-- Mobile Step Indicator (hidden lg+) -->
+        <div id="mobile-step-bar" class="lg:hidden bg-white border-b border-gray-100 px-4 py-3">
+            <div class="flex items-center justify-center gap-2 max-w-[160px] mx-auto">
+                <div id="step-dot-1" class="step-dot step-dot-active">1</div>
+                <div class="flex-1 h-0.5 bg-gray-200 rounded overflow-hidden">
+                    <div id="step-line" class="h-full bg-indigo-500 rounded transition-all duration-300" style="width:0%"></div>
+                </div>
+                <div id="step-dot-2" class="step-dot step-dot-inactive">2</div>
+            </div>
+            <div class="flex justify-between text-[10px] font-bold mt-1.5 max-w-[160px] mx-auto">
+                <span id="step-label-1" class="text-indigo-600">Details</span>
+                <span id="step-label-2" class="text-gray-400">Checkout</span>
+            </div>
+        </div>
+
         <div class="max-w-6xl mx-auto px-3 sm:px-4 py-4 lg:py-10">
             <div class="flex flex-col lg:flex-row gap-6 lg:gap-10 items-start">
 
-                <!-- LEFT: Product Info -->
-                <div class="w-full lg:flex-1 space-y-5">
+                <!-- STEP 1 / LEFT: Product Info -->
+                <div id="mobile-step-1" class="w-full lg:flex-1 space-y-5">
 
                     <!-- Hero Image -->
                     <div id="plan-image-container" class="hidden rounded-2xl overflow-hidden card-shadow hero-container">
@@ -68,7 +98,7 @@
                         <h1 id="plan-name" class="text-3xl lg:text-4xl font-black text-gray-900 leading-tight tracking-tight">Loading...</h1>
                     </div>
 
-                    <!-- Features -->
+                    <!-- Description -->
                     <div id="plan-details-wrapper" class="hidden">
                         <div class="bg-white rounded-2xl border border-gray-100 p-5 card-shadow">
                             <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
@@ -95,10 +125,32 @@
                             <div class="text-[11px] font-bold text-gray-500 leading-tight">UPI Secure<br>Payment</div>
                         </div>
                     </div>
+
+                    <!-- Mobile: price summary + continue button (hidden on desktop) -->
+                    <div class="lg:hidden">
+                        <div class="bg-white rounded-2xl border border-gray-100 card-shadow p-4 flex items-center justify-between gap-4">
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Total</p>
+                                <p id="mobile-price" class="text-2xl font-black text-indigo-700 font-mono tracking-tight">₹0.00</p>
+                                <p id="mobile-duration" class="text-[11px] text-gray-500 font-semibold hidden mt-0.5"></p>
+                            </div>
+                            <button onclick="goToStep2()" class="gradient-btn shrink-0 text-white font-black px-5 py-3 rounded-xl text-sm uppercase tracking-wider active:scale-95 transition" style="box-shadow:0 4px 14px rgba(102,126,234,0.4);">
+                                Continue →
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
 
-                <!-- RIGHT: Checkout Form -->
-                <div class="w-full lg:w-96 lg:shrink-0">
+                <!-- STEP 2 / RIGHT: Checkout Form (hidden on mobile, always visible on desktop) -->
+                <div id="mobile-step-2" class="w-full lg:w-96 lg:shrink-0 hidden lg:block">
+
+                    <!-- Mobile back button -->
+                    <button onclick="goToStep1()" class="lg:hidden flex items-center gap-1.5 text-sm font-bold text-indigo-600 hover:text-indigo-800 mb-4 transition active:scale-95">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                        Back to Details
+                    </button>
+
                     <div class="bg-white rounded-2xl border border-gray-100 card-shadow overflow-hidden lg:sticky lg:top-20">
 
                         <!-- Price Banner -->
@@ -224,6 +276,30 @@
         let pollInterval = null;
         let isFlexible = false;
 
+        function goToStep2() {
+            if (window.innerWidth >= 1024) return;
+            document.getElementById('mobile-step-1').classList.add('hidden');
+            document.getElementById('mobile-step-2').classList.remove('hidden');
+            document.getElementById('step-dot-1').className = 'step-dot step-dot-inactive';
+            document.getElementById('step-dot-2').className = 'step-dot step-dot-active';
+            document.getElementById('step-line').style.width = '100%';
+            document.getElementById('step-label-1').className = 'text-gray-400';
+            document.getElementById('step-label-2').className = 'text-indigo-600';
+            window.scrollTo(0, 0);
+        }
+
+        function goToStep1() {
+            if (window.innerWidth >= 1024) return;
+            document.getElementById('mobile-step-2').classList.add('hidden');
+            document.getElementById('mobile-step-1').classList.remove('hidden');
+            document.getElementById('step-dot-1').className = 'step-dot step-dot-active';
+            document.getElementById('step-dot-2').className = 'step-dot step-dot-inactive';
+            document.getElementById('step-line').style.width = '0%';
+            document.getElementById('step-label-1').className = 'text-indigo-600';
+            document.getElementById('step-label-2').className = 'text-gray-400';
+            window.scrollTo(0, 0);
+        }
+
         function renderMarkdown(text) {
             if (!text || !text.trim()) return '';
             const lines = text.split('\n');
@@ -255,32 +331,34 @@
                     document.getElementById('plan-name').innerText = data.plan_name;
 
                     const channelBadge = document.getElementById('channel-name');
-                    if (data.type === 'TG_PLAN') {
-                        channelBadge.innerText = data.channel_name;
-                    } else {
-                        channelBadge.innerText = 'Payment Link';
-                    }
+                    channelBadge.innerText = data.type === 'TG_PLAN' ? data.channel_name : 'Payment Link';
 
-                    // Show image if available
                     if (data.image_url) {
                         document.getElementById('plan-image').src = data.image_url;
                         document.getElementById('plan-image-container').classList.remove('hidden');
                     }
 
-                    // Render description with markdown support
                     if (data.description && data.description.trim()) {
-                        const html = renderMarkdown(data.description);
+                        const desc = data.description;
+                        let html;
+                        if (desc.trim().startsWith('<')) {
+                            html = `<div class="desc-content">${desc}</div>`;
+                        } else {
+                            html = renderMarkdown(desc);
+                        }
                         if (html) {
                             document.getElementById('plan-details').innerHTML = html;
                             document.getElementById('plan-details-wrapper').classList.remove('hidden');
                         }
                     }
 
-                    // Show duration badge for TG plans
                     if (data.type === 'TG_PLAN' && data.duration_days !== undefined) {
+                        const durText = data.duration_days == 0 ? '🔐 Lifetime Access' : `⏱ ${data.duration_days}-Day Access`;
                         const durEl = document.getElementById('duration-badge');
-                        durEl.innerText = data.duration_days == 0 ? '🔐 Lifetime Access' : `⏱ ${data.duration_days}-Day Access`;
+                        durEl.innerText = durText;
                         durEl.classList.remove('hidden');
+                        const mobDur = document.getElementById('mobile-duration');
+                        if (mobDur) { mobDur.innerText = durText; mobDur.classList.remove('hidden'); }
                     }
 
                     current_price = data.price || 0;
@@ -290,6 +368,7 @@
                         isFlexible = true;
                         document.getElementById('flex-amount-container').classList.remove('hidden');
                         document.getElementById('final-price').innerText = '₹0.00';
+                        document.getElementById('mobile-price').innerText = '₹0.00';
                     } else {
                         updatePrice();
                     }
@@ -314,7 +393,10 @@
 
         function updatePrice() {
             const final = current_price * (1 - (discount / 100));
-            document.getElementById('final-price').innerText = `₹${final.toFixed(2)}`;
+            const formatted = `₹${final.toFixed(2)}`;
+            document.getElementById('final-price').innerText = formatted;
+            const mp = document.getElementById('mobile-price');
+            if (mp) mp.innerText = formatted;
         }
 
         async function applyCoupon() {
