@@ -45,42 +45,80 @@
 
     <main class="flex-1 overflow-y-auto px-2 pt-3 pb-24 w-full max-w-2xl lg:max-w-4xl mx-auto">
         
-        <div id="view-billing" class="view-section hidden space-y-3">
-            <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-xl shadow-sm mb-4">
-                <h2 class="text-orange-800 font-bold text-lg mb-1">Subscription Upgrade</h2>
-                <p id="billing-exp-txt" class="text-sm text-orange-700 font-semibold mb-2">Select a plan below to continue using the platform.</p>
+        <div id="view-billing" class="view-section hidden">
+
+            <!-- Hero -->
+            <div class="rounded-2xl overflow-hidden mb-5" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #a855f7 100%);">
+                <div class="px-5 py-6 relative">
+                    <div class="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 mb-1">Subscription Upgrade</p>
+                    <h2 class="text-xl font-black text-white mb-1.5 leading-tight">Unlock Full Access &amp; Start Earning 🚀</h2>
+                    <p id="billing-exp-txt" class="text-sm text-white/75 font-medium mb-4">Choose a plan to activate your dashboard.</p>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-white/10 rounded-xl py-2.5 px-1">
+                            <p class="text-base">⚡</p>
+                            <p class="text-white font-black text-[11px] mt-0.5">Auto Payments</p>
+                        </div>
+                        <div class="bg-white/10 rounded-xl py-2.5 px-1">
+                            <p class="text-base">🤖</p>
+                            <p class="text-white font-black text-[11px] mt-0.5">Bot Automation</p>
+                        </div>
+                        <div class="bg-white/10 rounded-xl py-2.5 px-1">
+                            <p class="text-base">🛒</p>
+                            <p class="text-white font-black text-[11px] mt-0.5">Checkout Pages</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div id="billing-plans-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6"></div>
+            <!-- Plans grid (rendered by JS) -->
+            <div id="billing-plans-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5"></div>
 
-            <div id="billing-pay-zone" class="bg-white p-4 rounded-2xl shadow border border-gray-100 hidden relative">
-                <div class="flex justify-between items-center mb-4 border-b pb-2">
-                    <h2 class="font-bold text-gray-800" id="pay-plan-title">Selected Plan</h2>
-                    <button onclick="closePayment()" class="text-gray-400 font-bold text-xl leading-none">×</button>
-                </div>
-                
-                <div class="flex flex-col items-center justify-center mb-4 text-center">
-                    <div id="upi-qrcode" class="p-2 bg-white border-2 border-blue-100 rounded-xl mb-3 shadow-sm"></div>
-                    
-                    <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg w-full max-w-[250px]">
-                        <p id="pay-base-txt" class="text-xs text-gray-500 font-bold mb-1">Plan: ₹0 | Gateway Fee: ₹0.00</p>
-                        <p id="pay-amt-txt" class="text-3xl font-black text-blue-600 my-1 font-mono tracking-tight">₹0.00</p>
-                        <p class="text-xs text-red-600 font-bold mt-1 leading-tight">Do NOT round off!<br>Pay exact amount with paise for instant auto-verification.</p>
+            <!-- Guarantee strip -->
+            <div class="flex items-center justify-center gap-4 flex-wrap mb-5 text-center">
+                <span class="text-xs font-bold text-gray-500 flex items-center gap-1">🔒 Secure UPI Payment</span>
+                <span class="text-gray-200">|</span>
+                <span class="text-xs font-bold text-gray-500 flex items-center gap-1">⚡ Activated Instantly</span>
+                <span class="text-gray-200">|</span>
+                <span class="text-xs font-bold text-gray-500 flex items-center gap-1">📧 Receipt on Email</span>
+            </div>
+
+            <!-- Payment zone -->
+            <div id="billing-pay-zone" class="bg-white rounded-2xl border border-gray-100 overflow-hidden hidden" style="box-shadow: 0 4px 20px rgba(0,0,0,0.07);">
+                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-3.5 flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] font-black text-white/70 uppercase tracking-wider">Completing Purchase</p>
+                        <h2 class="font-black text-white text-sm" id="pay-plan-title">Selected Plan</h2>
                     </div>
-                    
-                    <div class="flex items-center gap-2 mt-4 text-blue-600 bg-blue-50 px-4 py-2 rounded-full font-bold text-sm">
-                        <div class="spinner"></div> Waiting for Payment...
+                    <button onclick="closePayment()" class="text-white/70 hover:text-white font-black text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition">×</button>
+                </div>
+
+                <div class="p-5 flex flex-col items-center text-center space-y-4">
+                    <div id="upi-qrcode" class="p-3 bg-white border-2 border-indigo-100 rounded-2xl" style="box-shadow: 0 4px 20px rgba(99,102,241,0.1);"></div>
+
+                    <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 w-full max-w-[280px]">
+                        <p id="pay-base-txt" class="text-[11px] text-indigo-500 font-bold mb-1"></p>
+                        <p id="pay-amt-txt" class="text-4xl font-black text-indigo-700 font-mono tracking-tighter">₹0.00</p>
+                        <p class="text-[10px] text-red-500 font-bold mt-2 leading-snug">⚠️ Pay exact amount including paise for instant auto-verification</p>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-5 py-2.5 rounded-full font-bold text-xs border border-indigo-100">
+                        <div class="spinner" style="width:14px;height:14px;border-left-color:#6366f1;border-color:rgba(99,102,241,0.2);"></div>
+                        Waiting for payment confirmation…
                     </div>
                 </div>
 
-                <details class="mt-4 border-t pt-3">
-                    <summary class="text-sm font-bold text-gray-500 cursor-pointer text-center outline-none">Payment done but screen stuck?</summary>
-                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2">
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Enter 12-Digit UPI Ref. No (UTR):</label>
-                        <input type="text" id="pay-utr" class="w-full p-2 text-sm border rounded bg-white text-center font-mono tracking-widest font-bold focus:outline-blue-500" placeholder="123456789012" maxlength="12">
-                        <button onclick="verifyPaymentManual()" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-2 rounded shadow mt-2 transition-colors text-sm">Verify Manually</button>
-                    </div>
-                </details>
+                <div class="px-5 pb-5">
+                    <details class="border-t border-gray-100 pt-4">
+                        <summary class="text-xs font-bold text-gray-400 cursor-pointer text-center hover:text-gray-600 transition">Payment done but screen stuck? Click here</summary>
+                        <div class="bg-gray-50 rounded-xl border border-gray-200 p-4 mt-3 space-y-2">
+                            <label class="block text-xs font-bold text-gray-600">Enter 12-Digit UPI Ref. No (UTR):</label>
+                            <input type="text" id="pay-utr" class="w-full p-3 text-sm border border-gray-200 rounded-xl bg-white text-center font-mono tracking-widest font-bold focus:outline-none focus:border-indigo-400" placeholder="123456789012" maxlength="12">
+                            <button onclick="verifyPaymentManual()" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-2.5 rounded-xl transition text-xs uppercase tracking-wide">Verify Manually</button>
+                        </div>
+                    </details>
+                </div>
+
                 <input type="hidden" id="active-txn-id">
             </div>
         </div>
@@ -1718,29 +1756,76 @@
         async function renderBillingPlans() {
             const container = document.getElementById('billing-plans-container');
             container.innerHTML = '';
-            
-            rawData.plans.forEach(p => {
-                let dur = p.duration_str.toLowerCase() === 'lifetime' ? 'Lifetime' : `${p.duration_str} Days`;
-                let dList = '';
-                if(p.details) {
-                    let lines = p.details.split('\n');
-                    dList = '<ul class="list-disc list-inside text-xs text-gray-500 mb-3 space-y-1 mt-2">';
-                    lines.forEach(l => { if(l.trim()) dList += `<li>${l.trim()}</li>`; });
-                    dList += '</ul>';
+            const plans = rawData.plans;
+            if (!plans || plans.length === 0) {
+                container.innerHTML = `<p class="text-sm text-gray-400 italic p-6 text-center col-span-2 font-medium">No plans configured yet.</p>`;
+                return;
+            }
+            // Sort ascending by price; mark most expensive as "Best Value"
+            const sorted = [...plans].sort((a, b) => a.price - b.price);
+            const bestIdx = sorted.length - 1;
+            // Find cheapest monthly-ish plan for savings calc
+            const cheapestDays = parseInt(sorted[0].duration_str) || 30;
+            const cheapestPricePerDay = sorted[0].price / cheapestDays;
+
+            sorted.forEach((p, idx) => {
+                const isBest = idx === bestIdx && sorted.length > 1;
+                const dur = p.duration_str.toLowerCase() === 'lifetime' ? 0 : parseInt(p.duration_str) || 30;
+                const durLabel = p.duration_str.toLowerCase() === 'lifetime' ? 'Lifetime' : (dur === 30 ? '1 Month' : dur === 180 ? '6 Months' : dur === 365 ? '1 Year' : `${dur} Days`);
+                const perDay = dur > 0 ? (p.price / dur).toFixed(1) : null;
+                const savings = dur > 0 && isBest ? Math.round((cheapestPricePerDay * dur) - p.price) : 0;
+
+                let featHtml = '';
+                if (p.details) {
+                    const lines = p.details.split('\n').filter(l => l.trim());
+                    featHtml = lines.map(l => {
+                        const isBold = l.includes('Save') || l.includes('save') || l.includes('Everything');
+                        return `<li class="flex items-start gap-2 text-xs ${isBest ? 'text-indigo-100' : 'text-gray-600'} font-medium">
+                            <span class="${isBest ? 'text-yellow-300' : 'text-emerald-500'} font-black shrink-0 mt-0.5">${isBold ? '★' : '✓'}</span>
+                            <span class="${isBold ? 'font-black' : ''}">${l.trim()}</span>
+                        </li>`;
+                    }).join('');
                 }
-                
+
+                const cardBg = isBest
+                    ? 'style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 60%, #a855f7 100%);"'
+                    : 'style="background: #fff;"';
+                const border = isBest ? 'border-transparent' : 'border-gray-100 hover:border-indigo-300';
+                const nameColor = isBest ? 'text-white' : 'text-gray-900';
+                const priceColor = isBest ? 'text-white' : 'text-indigo-700';
+                const perDayColor = isBest ? 'text-white/70' : 'text-gray-400';
+                const durColor = isBest ? 'text-white/80' : 'text-indigo-600';
+                const btnClass = isBest
+                    ? 'bg-white text-indigo-700 hover:bg-indigo-50 shadow-lg'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200';
+                const badgeHtml = isBest
+                    ? `<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 text-[10px] font-black px-4 py-1 rounded-full shadow uppercase tracking-wider">⭐ Best Value</span>`
+                    : '';
+                const savingsHtml = savings > 0
+                    ? `<div class="mt-2 inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-black px-3 py-1 rounded-full">🎉 Save ₹${savings.toLocaleString('en-IN')} vs monthly</div>`
+                    : '';
+
                 container.innerHTML += `
-                <div class="bg-white border-2 border-gray-100 hover:border-blue-500 rounded-2xl p-5 shadow-sm flex flex-col transition cursor-pointer" onclick="initiatePayment(${p.id}, '${p.name}')">
-                    <h3 class="font-bold text-gray-800 text-lg">${p.name}</h3>
-                    <p class="text-xs text-blue-600 font-bold uppercase tracking-wide mt-1">Valid for: ${dur}</p>
-                    ${dList}
-                    <div class="mt-auto flex justify-between items-center border-t border-gray-50 pt-3 mt-4">
-                        <span class="text-2xl font-black text-blue-600">₹${p.price}</span>
-                        <span class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm">Buy Now</span>
+                <div class="relative rounded-2xl border-2 ${border} overflow-hidden flex flex-col transition-all" ${cardBg} style="${isBest ? 'background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 60%, #a855f7 100%); box-shadow: 0 8px 30px rgba(99,102,241,0.35);' : 'border-color: #e5e7eb; box-shadow: 0 4px 15px rgba(0,0,0,0.06);'}">
+                    ${badgeHtml}
+                    <div class="p-5 flex flex-col flex-1 ${isBest ? 'pt-7' : ''}">
+                        <div class="mb-3">
+                            <p class="text-[10px] font-black uppercase tracking-[0.15em] ${durColor} mb-1">${durLabel}</p>
+                            <h3 class="text-lg font-black ${nameColor} leading-tight">${p.name}</h3>
+                            ${savingsHtml}
+                        </div>
+                        <div class="flex items-baseline gap-1.5 mb-1">
+                            <span class="text-3xl font-black font-mono ${priceColor} tracking-tight">₹${p.price.toLocaleString('en-IN')}</span>
+                            <span class="${perDayColor} text-xs font-bold">${dur === 30 ? '/month' : dur === 180 ? '/6 months' : dur === 365 ? '/year' : ''}</span>
+                        </div>
+                        ${perDay ? `<p class="${perDayColor} text-[11px] font-bold mb-4">≈ ₹${perDay}/day</p>` : '<div class="mb-4"></div>'}
+                        ${featHtml ? `<ul class="space-y-2 flex-1 mb-5">${featHtml}</ul>` : '<div class="flex-1"></div>'}
+                        <button onclick="initiatePayment(${p.id}, '${p.name.replace(/'/g, "\\'")}')" class="${btnClass} w-full font-black py-3.5 rounded-xl text-sm uppercase tracking-wider transition-all active:scale-95">
+                            Get ${durLabel} Access →
+                        </button>
                     </div>
                 </div>`;
             });
-            if(rawData.plans.length === 0) container.innerHTML = `<p class="text-sm text-gray-500 italic p-4 text-center col-span-2 font-medium">No plans configured by admin.</p>`;
         }
 
         async function initiatePayment(planId, planName) {
