@@ -7,6 +7,7 @@ import re
 import base64
 import smtplib
 import random
+import json
 from email.message import EmailMessage
 import hashlib
 import uuid
@@ -100,6 +101,29 @@ def init_auth_db():
     except: pass
     try: cursor.execute("ALTER TABLE web_users ADD COLUMN store_has_logo INTEGER DEFAULT 0")
     except: pass
+
+    # --- Agent Support Contact & Payment Gateway ---
+    try: cursor.execute("ALTER TABLE web_users ADD COLUMN support_email TEXT DEFAULT ''")
+    except: pass
+    try: cursor.execute("ALTER TABLE web_users ADD COLUMN support_phone TEXT DEFAULT ''")
+    except: pass
+    try: cursor.execute("ALTER TABLE web_users ADD COLUMN payment_gateway TEXT DEFAULT 'ONLINE'")
+    except: pass
+    try: cursor.execute("ALTER TABLE web_users ADD COLUMN whatsapp_number TEXT DEFAULT ''")
+    except: pass
+
+    # --- Discounted original prices ---
+    try: cursor.execute("ALTER TABLE customer_plans ADD COLUMN original_price REAL DEFAULT 0")
+    except: pass
+    try: cursor.execute("ALTER TABLE payment_links ADD COLUMN original_price REAL DEFAULT 0")
+    except: pass
+
+    # --- Multiple tier plans (JSON array) ---
+    try: cursor.execute("ALTER TABLE customer_plans ADD COLUMN tiers TEXT DEFAULT ''")
+    except: pass
+
+    # --- Checkout disclaimer ---
+    cursor.execute("INSERT OR IGNORE INTO global_settings (key, value) VALUES ('checkout_disclaimer', '')")
 
     # Generate webhook keys for any existing users that don't have one
     cursor.execute("SELECT id FROM web_users WHERE webhook_key = '' OR webhook_key IS NULL")
@@ -253,7 +277,7 @@ def get_current_user(request: Request):
     if not session:
         conn.close(); raise HTTPException(status_code=401, detail="Session expired")
     
-    cursor.execute("SELECT id, email, role, invite_durations, extend_durations, notify_join, notify_leave, expiry_date, agent_upi_id, webhook_key, store_name, store_has_logo FROM web_users WHERE email=?", (session[0],))
+    cursor.execute("SELECT id, email, role, invite_durations, extend_durations, notify_join, notify_leave, expiry_date, agent_upi_id, webhook_key, store_name, store_has_logo, support_email, support_phone, payment_gateway, whatsapp_number FROM web_users WHERE email=?", (session[0],))
     user = cursor.fetchone()
     conn.close()
     if not user: raise HTTPException(status_code=401, detail="User not found")
@@ -262,7 +286,9 @@ def get_current_user(request: Request):
         "id": user[0], "email": user[1], "role": user[2], "invite_durations": user[3],
         "extend_durations": user[4], "notify_join": user[5], "notify_leave": user[6],
         "expiry_date": user[7], "agent_upi_id": user[8], "webhook_key": user[9],
-        "store_name": user[10] or "", "store_has_logo": user[11] or 0
+        "store_name": user[10] or "", "store_has_logo": user[11] or 0,
+        "support_email": user[12] or "", "support_phone": user[13] or "",
+        "payment_gateway": user[14] or "ONLINE", "whatsapp_number": user[15] or ""
     }
 
 def verify_channel_access(cursor, channel_id, user):
@@ -486,10 +512,10 @@ def apply_agent_payment(cursor, bg_tasks, txn_id, utr, amount, agent_email, plan
     body = f"Payment Successful!\n\nYou have purchased the <b>{plan[1]}</b> plan.<br>Your new expiry date is: <b>{new_expiry}</b><br><br>Transaction ID: {txn_id}<br>UTR: {utr}"
     bg_tasks.add_task(send_email_sync, agent_email, "Subscription Confirmed", body)
 
-def apply_customer_payment(cursor, bg_tasks, txn_id, utr, customer_email, plan_id):
+def apply_customer_payment(cursor, bg_tasks, txn_id, utr, customer_email, plan_id, override_duration_days=None):
     cursor.execute("SELECT plan_name, duration_days, channel_id, agent_id, extra_emails FROM customer_plans WHERE id=?", (plan_id,))
     plan = cursor.fetchone()
-    
+
     agent_id = None
     item_name = "Payment"
     invite_link = ""
@@ -498,6 +524,8 @@ def apply_customer_payment(cursor, bg_tasks, txn_id, utr, customer_email, plan_i
 
     if plan:
         item_name, duration_days, channel_ids_str, agent_id, extra_emails = plan[0], plan[1], plan[2], plan[3], plan[4]
+        if override_duration_days is not None:
+            duration_days = override_duration_days
         duration_str = str(duration_days) if duration_days > 0 else 'lifetime'
         
         channel_ids = [c.strip() for c in str(channel_ids_str).split(',') if c.strip()]
@@ -771,8 +799,11 @@ async def api_payment_verify_manual(req: Request, bg_tasks: BackgroundTasks, use
 async def api_public_checkout_plan(plan_id: str):
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    cursor.execute("SELECT p.plan_name, p.price, p.duration_days, p.description, p.is_active, u.agent_upi_id, p.channel_id, p.agent_id, p.has_image, u.store_name, u.store_has_logo FROM customer_plans p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
+    cursor.execute("SELECT value FROM global_settings WHERE key='checkout_disclaimer'")
+    disc_row = cursor.fetchone()
+    checkout_disclaimer = disc_row[0] if disc_row else ""
+
+    cursor.execute("SELECT p.plan_name, p.price, p.duration_days, p.description, p.is_active, u.agent_upi_id, p.channel_id, p.agent_id, p.has_image, u.store_name, u.store_has_logo, u.support_email, u.support_phone, u.payment_gateway, p.original_price, p.tiers FROM customer_plans p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
     row = cursor.fetchone()
     if row and row[4] == 1:
         channel_ids = [c.strip() for c in str(row[6]).split(',') if c.strip()]
@@ -785,16 +816,17 @@ async def api_public_checkout_plan(plan_id: str):
             channel_name_str = "Telegram Channel"
         image_url = f"/api/image/plan_image_{plan_id}.jpg" if row[8] else None
         store_logo_url = f"/api/image/store_logo_{row[7]}.jpg" if row[10] else None
+        tiers = json.loads(row[15]) if row[15] else []
         conn.close()
-        return {"status": "success", "plan_name": row[0], "price": row[1], "duration_days": row[2], "description": row[3], "agent_upi_id": row[5], "channel_name": channel_name_str, "agent_id": row[7], "type": "TG_PLAN", "image_url": image_url, "store_name": row[9] or "", "store_logo_url": store_logo_url}
+        return {"status": "success", "plan_name": row[0], "price": row[1], "duration_days": row[2], "description": row[3], "agent_upi_id": row[5], "channel_name": channel_name_str, "agent_id": row[7], "type": "TG_PLAN", "image_url": image_url, "store_name": row[9] or "", "store_logo_url": store_logo_url, "support_email": row[11] or "", "support_phone": row[12] or "", "payment_gateway": row[13] or "ONLINE", "original_price": row[14] or 0, "tiers": tiers, "checkout_disclaimer": checkout_disclaimer}
 
-    cursor.execute("SELECT p.title, p.amount, p.type, p.redirect_url, p.is_active, u.agent_upi_id, p.agent_id, p.description, p.has_image, u.store_name, u.store_has_logo FROM payment_links p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
+    cursor.execute("SELECT p.title, p.amount, p.type, p.redirect_url, p.is_active, u.agent_upi_id, p.agent_id, p.description, p.has_image, u.store_name, u.store_has_logo, u.support_email, u.support_phone, u.payment_gateway, p.original_price FROM payment_links p JOIN web_users u ON p.agent_id = u.id WHERE p.id=?", (plan_id,))
     row = cursor.fetchone()
     conn.close()
     if row and row[4] == 1:
         image_url = f"/api/image/link_image_{plan_id}.jpg" if row[8] else None
         store_logo_url = f"/api/image/store_logo_{row[6]}.jpg" if row[10] else None
-        return {"status": "success", "plan_name": row[0], "price": row[1], "link_type": row[2], "redirect_url": row[3], "agent_upi_id": row[5], "agent_id": row[6], "description": row[7], "type": "PAYMENT_LINK", "channel_name": "Payment Link", "image_url": image_url, "store_name": row[9] or "", "store_logo_url": store_logo_url}
+        return {"status": "success", "plan_name": row[0], "price": row[1], "link_type": row[2], "redirect_url": row[3], "agent_upi_id": row[5], "agent_id": row[6], "description": row[7], "type": "PAYMENT_LINK", "channel_name": "Payment Link", "image_url": image_url, "store_name": row[9] or "", "store_logo_url": store_logo_url, "support_email": row[11] or "", "support_phone": row[12] or "", "payment_gateway": row[13] or "ONLINE", "original_price": row[14] or 0, "tiers": [], "checkout_disclaimer": checkout_disclaimer}
 
     return {"status": "error", "message": "Item not found or inactive."}
 
@@ -822,23 +854,25 @@ async def api_public_checkout_initiate(req: Request, bg_tasks: BackgroundTasks):
     mobile = data.get('mobile', '')
     coupon_code = data.get('coupon_code', '')
     flexible_amount = float(data.get('flexible_amount', 0))
-    
-    if not email or not name or not mobile: 
+    selected_tier_index = data.get('selected_tier_index', None)
+
+    if not email or not name or not mobile:
         return {"status": "error", "message": "Name, Email, and Mobile are required."}
-    
+
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     is_payment_link = False
-    cursor.execute("SELECT plan_name, price, agent_id, is_active FROM customer_plans WHERE id=?", (plan_id,))
+    override_duration = None
+    cursor.execute("SELECT plan_name, price, agent_id, is_active, tiers FROM customer_plans WHERE id=?", (plan_id,))
     plan = cursor.fetchone()
-    
+
     if not plan:
         cursor.execute("SELECT title, amount, agent_id, is_active, type, discount_code FROM payment_links WHERE id=?", (plan_id,))
         plan = cursor.fetchone()
         is_payment_link = True
 
-    if not plan or plan[3] == 0: 
+    if not plan or plan[3] == 0:
         conn.close(); return {"status": "error", "message": "Item unavailable."}
     
     agent_id = plan[2]
@@ -849,9 +883,20 @@ async def api_public_checkout_initiate(req: Request, bg_tasks: BackgroundTasks):
         base_price = flexible_amount
     else:
         base_price = float(plan[1])
-        
+        # Handle tier selection for TG plans
+        if not is_payment_link and plan[4]:
+            try:
+                tiers = json.loads(plan[4])
+                if tiers and selected_tier_index is not None:
+                    idx = int(selected_tier_index)
+                    if 0 <= idx < len(tiers):
+                        base_price = float(tiers[idx]['price'])
+                        override_duration = int(tiers[idx]['days'])
+            except Exception:
+                pass
+
     final_price = base_price
-    
+
     if coupon_code:
         cursor.execute("SELECT id, discount_pct, max_uses, used_count, plan_id FROM coupons WHERE code=? AND agent_id=? AND is_active=1", (coupon_code, agent_id))
         coupon = cursor.fetchone()
@@ -860,28 +905,43 @@ async def api_public_checkout_initiate(req: Request, bg_tasks: BackgroundTasks):
             cursor.execute("UPDATE coupons SET used_count=used_count+1 WHERE id=?", (coupon[0],))
         else:
             coupon_code = ''
-            
+
     txn_id = "CUS" + str(uuid.uuid4().hex)[:8].upper()
     now = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
     if final_price <= 0:
         cursor.execute("INSERT INTO customer_transactions (txn_id, agent_id, customer_email, customer_name, customer_mobile, plan_id, coupon_code, final_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'PENDING', ?)", (txn_id, agent_id, email, name, mobile, plan_id, coupon_code, now))
         conn.commit()
-        payment_data = apply_customer_payment(cursor, bg_tasks, txn_id, '100_PCT_DISCOUNT', email, plan_id)
+        payment_data = apply_customer_payment(cursor, bg_tasks, txn_id, '100_PCT_DISCOUNT', email, plan_id, override_duration)
         conn.commit(); conn.close()
         return {"status": "success_bypass", "txn_id": txn_id, "invite_link": payment_data.get("invite_link"), "redirect_url": payment_data.get("redirect_url")}
-        
-    cursor.execute("SELECT agent_upi_id FROM web_users WHERE id=?", (agent_id,))
+
+    # Check agent payment gateway
+    cursor.execute("SELECT agent_upi_id, payment_gateway, whatsapp_number FROM web_users WHERE id=?", (agent_id,))
     upi_row = cursor.fetchone()
     upi_id = upi_row[0] if upi_row else ""
+    gateway = upi_row[1] if upi_row else "ONLINE"
+    wa_number = upi_row[2] if upi_row else ""
+
+    # Offline payment gateway — place order and redirect to WhatsApp
+    if gateway == 'OFFLINE':
+        cursor.execute("INSERT INTO customer_transactions (txn_id, agent_id, customer_email, customer_name, customer_mobile, plan_id, coupon_code, final_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_MANUAL', ?)", (txn_id, agent_id, email, name, mobile, plan_id, coupon_code, round(final_price, 2), now))
+        conn.commit(); conn.close()
+        plan_display = plan_id
+        wa_num = re.sub(r'\D', '', wa_number)
+        msg = f"Hi! I just placed an order.\n\nOrder ID: {txn_id}\nName: {name}\nEmail: {email}\nMobile: {mobile}\nPlan/Item: {plan_display}\nAmount: ₹{final_price:.2f}\n\nPlease approve my order."
+        import urllib.parse
+        wa_url = f"https://wa.me/{wa_num}?text={urllib.parse.quote(msg)}" if wa_num else ""
+        return {"status": "success_offline", "txn_id": txn_id, "whatsapp_url": wa_url, "amount": final_price}
+
     if not upi_id: conn.close(); return {"status": "error", "message": "Seller cannot accept payments right now."}
-    
+
     fee = random.randint(11, 99) / 100.0
     final_amount = final_price + fee
-    
+
     cursor.execute("INSERT INTO customer_transactions (txn_id, agent_id, customer_email, customer_name, customer_mobile, plan_id, coupon_code, final_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)", (txn_id, agent_id, email, name, mobile, plan_id, coupon_code, final_amount, now))
     conn.commit(); conn.close()
-    
+
     upi_string = f"upi://pay?pa={upi_id}&pn=Payment&am={final_amount:.2f}&tr={txn_id}&cu=INR"
     return {"status": "success", "txn_id": txn_id, "upi_string": upi_string, "amount": final_amount, "base_price": final_price, "fee": fee}
 
@@ -952,7 +1012,11 @@ async def api_user_store(req: Request, user: dict = Depends(get_current_user)):
         path = f"/app/data/store_logo_{user['id']}.jpg"
         with open(path, "wb") as f: f.write(base64.b64decode(logo_data.split(",", 1)[1]))
         has_logo = 1
-    conn.execute("UPDATE web_users SET store_name=?, store_has_logo=? WHERE id=?", (store_name, has_logo, user['id']))
+    conn.execute(
+        "UPDATE web_users SET store_name=?, store_has_logo=?, support_email=?, support_phone=?, payment_gateway=?, whatsapp_number=? WHERE id=?",
+        (store_name, has_logo, data.get('support_email', '').strip(), data.get('support_phone', '').strip(),
+         data.get('payment_gateway', 'ONLINE'), data.get('whatsapp_number', '').strip(), user['id'])
+    )
     conn.commit(); conn.close()
     return {"status": "success"}
 
@@ -967,10 +1031,12 @@ async def api_b2c_plans_save(req: Request, user: dict = Depends(get_current_user
             if not verify_channel_access(cursor, cid, user):
                 return {"status": "error", "message": f"Unauthorized access to channel {cid}."}
 
-        dur = int(data['duration_days']) if data['duration_days'] else 0
+        dur = int(data['duration_days']) if data.get('duration_days') else 0
         allow_free = int(data.get('allow_free_webhook', 0))
         extra_emails = data.get('extra_emails', '')
         image_data = data.get('image', None)
+        orig_price = float(data.get('original_price') or 0)
+        tiers_json = data.get('tiers', '')
 
         if data.get('plan_id'):
             pid = data['plan_id']
@@ -982,8 +1048,8 @@ async def api_b2c_plans_save(req: Request, user: dict = Depends(get_current_user
             elif image_data and image_data.startswith("data:image"):
                 with open(img_path, "wb") as f: f.write(base64.b64decode(image_data.split(",", 1)[1]))
                 has_image_update = ", has_image=1"
-            conn.execute(f"UPDATE customer_plans SET plan_name=?, channel_id=?, price=?, duration_days=?, description=?, allow_free_webhook=?, extra_emails=?{has_image_update} WHERE id=? AND agent_id=?",
-                         (data['plan_name'], data['channel_id'], float(data['price']), dur, data['description'], allow_free, extra_emails, pid, user['id']))
+            conn.execute(f"UPDATE customer_plans SET plan_name=?, channel_id=?, price=?, duration_days=?, description=?, allow_free_webhook=?, extra_emails=?, original_price=?, tiers=?{has_image_update} WHERE id=? AND agent_id=?",
+                         (data['plan_name'], data['channel_id'], float(data['price']), dur, data['description'], allow_free, extra_emails, orig_price, tiers_json, pid, user['id']))
         else:
             plan_id = "PLN" + str(uuid.uuid4().hex)[:8].upper()
             has_image = 0
@@ -991,12 +1057,35 @@ async def api_b2c_plans_save(req: Request, user: dict = Depends(get_current_user
                 img_path = f"/app/data/plan_image_{plan_id}.jpg"
                 with open(img_path, "wb") as f: f.write(base64.b64decode(image_data.split(",", 1)[1]))
                 has_image = 1
-            conn.execute("INSERT INTO customer_plans (id, agent_id, channel_id, plan_name, price, duration_days, description, allow_free_webhook, extra_emails, has_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                         (plan_id, user['id'], data['channel_id'], data['plan_name'], float(data['price']), dur, data['description'], allow_free, extra_emails, has_image))
+            conn.execute("INSERT INTO customer_plans (id, agent_id, channel_id, plan_name, price, duration_days, description, allow_free_webhook, extra_emails, has_image, original_price, tiers) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                         (plan_id, user['id'], data['channel_id'], data['plan_name'], float(data['price']), dur, data['description'], allow_free, extra_emails, has_image, orig_price, tiers_json))
         conn.commit()
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
     finally: conn.close()
+
+@app.post("/api/b2c/orders/approve/{txn_id}")
+async def api_b2c_order_approve(txn_id: str, bg_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT plan_id, status, customer_email, final_amount FROM customer_transactions WHERE txn_id=? AND agent_id=?", (txn_id, user['id']))
+        txn = cursor.fetchone()
+        if not txn or txn[1] != 'PENDING_MANUAL':
+            conn.close(); return {"status": "error", "message": "Order not found or not pending."}
+        cursor.execute("UPDATE customer_transactions SET status='PROCESSING' WHERE txn_id=?", (txn_id,))
+        payment_data = apply_customer_payment(cursor, bg_tasks, txn_id, 'MANUAL_APPROVAL', txn[2], txn[0])
+        conn.commit(); conn.close()
+        return {"status": "success", "invite_link": payment_data.get("invite_link")}
+    except Exception as e:
+        conn.close(); return {"status": "error", "message": str(e)}
+
+@app.post("/api/b2c/orders/reject/{txn_id}")
+async def api_b2c_order_reject(txn_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    conn.execute("UPDATE customer_transactions SET status='REJECTED' WHERE txn_id=? AND agent_id=? AND status='PENDING_MANUAL'", (txn_id, user['id']))
+    conn.commit(); conn.close()
+    return {"status": "success"}
 
 @app.post("/api/b2c/plans/delete/{plan_id}")
 async def api_b2c_plans_delete(plan_id: str, user: dict = Depends(get_current_user)):
@@ -1013,6 +1102,7 @@ async def api_b2c_payment_links_save(req: Request, user: dict = Depends(get_curr
         allow_free = int(data.get('allow_free_webhook', 0))
         extra_emails = data.get('extra_emails', '')
         image_data = data.get('image', None)
+        orig_price = float(data.get('original_price') or 0)
 
         if data.get('link_id'):
             lid = data['link_id']
@@ -1024,8 +1114,8 @@ async def api_b2c_payment_links_save(req: Request, user: dict = Depends(get_curr
             elif image_data and image_data.startswith("data:image"):
                 with open(img_path, "wb") as f: f.write(base64.b64decode(image_data.split(",", 1)[1]))
                 has_image_update = ", has_image=1"
-            conn.execute(f"UPDATE payment_links SET title=?, type=?, amount=?, discount_code=?, redirect_url=?, description=?, allow_free_webhook=?, extra_emails=?{has_image_update} WHERE id=? AND agent_id=?",
-                         (data['title'], data['type'], float(data['amount'] or 0), data.get('discount_code', ''), data.get('redirect_url', ''), data.get('description', ''), allow_free, extra_emails, lid, user['id']))
+            conn.execute(f"UPDATE payment_links SET title=?, type=?, amount=?, discount_code=?, redirect_url=?, description=?, allow_free_webhook=?, extra_emails=?, original_price=?{has_image_update} WHERE id=? AND agent_id=?",
+                         (data['title'], data['type'], float(data['amount'] or 0), data.get('discount_code', ''), data.get('redirect_url', ''), data.get('description', ''), allow_free, extra_emails, orig_price, lid, user['id']))
         else:
             link_id = "PAY" + str(uuid.uuid4().hex)[:8].upper()
             now = get_ist_now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1034,8 +1124,8 @@ async def api_b2c_payment_links_save(req: Request, user: dict = Depends(get_curr
                 img_path = f"/app/data/link_image_{link_id}.jpg"
                 with open(img_path, "wb") as f: f.write(base64.b64decode(image_data.split(",", 1)[1]))
                 has_image = 1
-            conn.execute("INSERT INTO payment_links (id, agent_id, title, type, amount, discount_code, redirect_url, description, allow_free_webhook, created_at, extra_emails, has_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                         (link_id, user['id'], data['title'], data['type'], float(data['amount'] or 0), data.get('discount_code', ''), data.get('redirect_url', ''), data.get('description', ''), allow_free, now, extra_emails, has_image))
+            conn.execute("INSERT INTO payment_links (id, agent_id, title, type, amount, discount_code, redirect_url, description, allow_free_webhook, created_at, extra_emails, has_image, original_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                         (link_id, user['id'], data['title'], data['type'], float(data['amount'] or 0), data.get('discount_code', ''), data.get('redirect_url', ''), data.get('description', ''), allow_free, now, extra_emails, has_image, orig_price))
         conn.commit()
         return {"status": "success"}
     except Exception as e: return {"status": "error", "message": str(e)}
@@ -1364,11 +1454,11 @@ async def api_get_data(user: dict = Depends(get_current_user)):
     channels = [{"id": r[0], "name": r[1], "bot_status": r[2], "welcome": r[3] or "", "farewell": r[4] or "", "w_btns": r[5] or "", "f_btns": r[6] or "", "w_img": bool(r[7]), "f_img": bool(r[8])} for r in cursor.fetchall()]
     
     # B2C Data
-    cursor.execute("SELECT id, plan_name, price, duration_days, description, is_active, channel_id, allow_free_webhook, extra_emails, has_image FROM customer_plans WHERE agent_id=?", (user['id'],))
-    b2c_plans = [{"id": r[0], "plan_name": r[1], "price": r[2], "duration_days": r[3], "description": r[4], "is_active": r[5], "channel_id": r[6], "allow_free_webhook": r[7] or 0, "extra_emails": r[8] or "", "has_image": r[9] or 0} for r in cursor.fetchall()]
+    cursor.execute("SELECT id, plan_name, price, duration_days, description, is_active, channel_id, allow_free_webhook, extra_emails, has_image, original_price, tiers FROM customer_plans WHERE agent_id=?", (user['id'],))
+    b2c_plans = [{"id": r[0], "plan_name": r[1], "price": r[2], "duration_days": r[3], "description": r[4], "is_active": r[5], "channel_id": r[6], "allow_free_webhook": r[7] or 0, "extra_emails": r[8] or "", "has_image": r[9] or 0, "original_price": r[10] or 0, "tiers": r[11] or ""} for r in cursor.fetchall()]
 
-    cursor.execute("SELECT id, title, type, amount, discount_code, redirect_url, is_active, description, allow_free_webhook, extra_emails, has_image FROM payment_links WHERE agent_id=?", (user['id'],))
-    payment_links = [{"id": r[0], "title": r[1], "type": r[2], "amount": r[3], "discount_code": r[4] or "", "redirect_url": r[5] or "", "is_active": r[6], "description": r[7] or "", "allow_free_webhook": r[8] or 0, "extra_emails": r[9] or "", "has_image": r[10] or 0} for r in cursor.fetchall()]
+    cursor.execute("SELECT id, title, type, amount, discount_code, redirect_url, is_active, description, allow_free_webhook, extra_emails, has_image, original_price FROM payment_links WHERE agent_id=?", (user['id'],))
+    payment_links = [{"id": r[0], "title": r[1], "type": r[2], "amount": r[3], "discount_code": r[4] or "", "redirect_url": r[5] or "", "is_active": r[6], "description": r[7] or "", "allow_free_webhook": r[8] or 0, "extra_emails": r[9] or "", "has_image": r[10] or 0, "original_price": r[11] or 0} for r in cursor.fetchall()]
     
     cursor.execute("SELECT id, code, discount_pct, max_uses, used_count, is_active, plan_id FROM coupons WHERE agent_id=?", (user['id'],))
     coupons = [{"id": r[0], "code": r[1], "discount_pct": r[2], "max_uses": r[3], "used_count": r[4], "is_active": r[5], "plan_id": r[6] or ""} for r in cursor.fetchall()]
@@ -1398,7 +1488,9 @@ async def api_get_data(user: dict = Depends(get_current_user)):
             "invite_durations": user['invite_durations'], "extend_durations": user['extend_durations'],
             "notify_join": user['notify_join'], "notify_leave": user['notify_leave'],
             "expiry_date": user['expiry_date'], "agent_upi_id": user['agent_upi_id'], "webhook_key": user.get('webhook_key', ''), "is_expired": is_expired, "id": user['id'],
-            "store_name": user.get('store_name', ''), "store_has_logo": user.get('store_has_logo', 0)
+            "store_name": user.get('store_name', ''), "store_has_logo": user.get('store_has_logo', 0),
+            "support_email": user.get('support_email', ''), "support_phone": user.get('support_phone', ''),
+            "payment_gateway": user.get('payment_gateway', 'ONLINE'), "whatsapp_number": user.get('whatsapp_number', '')
         }
     }
 

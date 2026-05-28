@@ -24,6 +24,7 @@
         .ql-snow .ql-toolbar button { width: 26px; height: 26px; }
         .banner-preview { aspect-ratio: 3/2; min-height: 80px; background: linear-gradient(135deg,#f3f4f6,#e5e7eb); }
         .banner-preview img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+        @media (min-width: 768px) { #settings-sidebar { position: sticky; top: 0; max-height: 100vh; overflow-y: auto; } }
     </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 h-[100dvh] flex flex-col overflow-hidden relative">
@@ -260,6 +261,28 @@
                                 <input type="hidden" id="store-logo-data" value="">
                             </div>
                         </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Support Email:</label>
+                                <input type="email" id="store-support-email" placeholder="support@yourstore.com" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Support Phone / WhatsApp:</label>
+                                <input type="text" id="store-support-phone" placeholder="+91 9876543210" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                        </div>
+                        <div class="border-t border-indigo-100 pt-3 mt-1">
+                            <label class="text-sm font-bold text-gray-700 block mb-1">Payment Gateway:</label>
+                            <select id="store-payment-gateway" class="w-full p-2.5 text-sm border rounded bg-white font-bold" onchange="toggleWhatsappField()">
+                                <option value="ONLINE">🟢 Online (UPI — Auto Verified)</option>
+                                <option value="OFFLINE">📲 Offline (WhatsApp Manual Approval)</option>
+                            </select>
+                            <div id="whatsapp-number-row" class="hidden mt-2">
+                                <label class="text-xs font-bold text-gray-600 block mb-1">WhatsApp Number (with country code):</label>
+                                <input type="text" id="store-whatsapp-number" placeholder="+919876543210" class="w-full p-2.5 text-sm border rounded bg-white">
+                                <p class="text-[10px] text-orange-600 font-semibold mt-1">⚠️ Orders will be placed in PENDING state. You approve manually from the Transactions tab.</p>
+                            </div>
+                        </div>
                         <button onclick="saveStoreInfo()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded text-sm transition w-full">💾 Save Store Info</button>
                     </div>
 
@@ -334,17 +357,36 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="text-sm font-bold text-gray-700 block mb-1">Price (₹):</label>
-                                <input type="number" id="b2c-plan-price" placeholder="Amount" class="w-full p-2.5 text-sm border rounded bg-white">
+                                <input type="number" id="b2c-plan-price" placeholder="Amount" oninput="updatePlanDiscountBadge()" class="w-full p-2.5 text-sm border rounded bg-white">
                             </div>
                             <div>
                                 <label class="text-sm font-bold text-gray-700 block mb-1">Duration (0 = Lifetime):</label>
                                 <input type="number" id="b2c-plan-days" placeholder="Days" class="w-full p-2.5 text-sm border rounded bg-white">
                             </div>
                         </div>
-                        
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Original / MRP (₹) <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
+                                <input type="number" id="b2c-plan-original-price" placeholder="e.g. 999" oninput="updatePlanDiscountBadge()" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                            <div class="flex items-end pb-2.5">
+                                <p id="b2c-plan-discount-badge" class="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded hidden"></p>
+                            </div>
+                        </div>
+
                         <label class="text-sm font-bold text-gray-700 block mb-1">Item Description <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
                         <div id="b2c-plan-desc-editor" class="bg-white rounded-lg"></div>
                         <input type="hidden" id="b2c-plan-desc">
+
+                        <div class="border border-dashed border-indigo-300 rounded-xl p-3 bg-indigo-50/50 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm font-bold text-indigo-800">📊 Multiple Duration Tiers <span class="text-xs font-normal text-indigo-500">(optional)</span></label>
+                                <button type="button" onclick="addPlanTier()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded transition">+ Add Tier</button>
+                            </div>
+                            <p class="text-[10px] text-indigo-600 font-semibold">If set, customers choose from these tiers instead of the base price above. Leave empty for single price.</p>
+                            <div id="plan-tiers-container" class="space-y-2"></div>
+                        </div>
 
                         <label class="text-sm font-bold text-gray-700 block mb-1 mt-3">Cover Banner Image <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
                         <div class="space-y-1.5">
@@ -384,6 +426,15 @@
                         <label class="text-sm font-bold text-gray-700 block -mb-2">Payment Title:</label>
                         <input type="text" id="payment-link-title" placeholder="e.g. eBook Purchase" class="w-full p-2.5 text-sm border rounded bg-white">
                         
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm font-bold text-gray-700 block mb-1">Original / MRP (₹) <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
+                                <input type="number" id="payment-link-original-price" placeholder="e.g. 999" oninput="updateLinkDiscountBadge()" class="w-full p-2.5 text-sm border rounded bg-white">
+                            </div>
+                            <div class="flex items-end pb-2.5">
+                                <p id="payment-link-discount-badge" class="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded hidden"></p>
+                            </div>
+                        </div>
                         <label class="text-sm font-bold text-gray-700 block mb-1">Item Description <span class="text-xs font-normal text-gray-400">(optional)</span>:</label>
                         <div id="payment-link-desc-editor" class="bg-white rounded-lg"></div>
                         <input type="hidden" id="payment-link-description">
@@ -398,7 +449,7 @@
                             </div>
                             <div>
                                 <label class="text-sm font-bold text-gray-700 block mb-1">Amount (₹):</label>
-                                <input type="number" id="payment-link-amount" placeholder="Amount ₹" class="w-full p-2.5 text-sm border rounded bg-white">
+                                <input type="number" id="payment-link-amount" placeholder="Amount ₹" oninput="updateLinkDiscountBadge()" class="w-full p-2.5 text-sm border rounded bg-white">
                             </div>
                         </div>
                         
@@ -564,6 +615,11 @@
                         </div>
                         <img id="preview-site-icon" class="hidden mb-5 h-16 w-16 rounded-xl border border-gray-200 object-cover bg-white p-1 shadow-sm">
                         
+                        <div class="mt-3">
+                            <label class="text-sm font-bold text-gray-700 block mb-1">Checkout Page Disclaimer <span class="text-xs font-normal text-gray-400">(optional, shown at bottom of all checkout pages)</span>:</label>
+                            <p class="text-[10px] text-gray-400 font-semibold mb-1.5">Placeholders: <code>{store_name}</code>, <code>{support_phone}</code>, <code>{support_email}</code></p>
+                            <textarea id="checkout-disclaimer" rows="3" placeholder="e.g. {store_name} | Support: {support_phone} | {support_email}" class="w-full p-2.5 text-xs border rounded bg-white font-mono"></textarea>
+                        </div>
                         <button onclick="saveBranding()" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-2.5 rounded-lg text-sm shadow-sm transition">💾 Save Branding</button>
                     </div>
                 </div>
@@ -814,17 +870,18 @@
                     document.getElementById('reg-enable').value = rawData.settings.registration_enabled || "false";
                     document.getElementById('reg-trial-days').value = rawData.settings.trial_days || "3";
                     document.getElementById('upi-randomize').value = rawData.settings.upi_randomize || "false";
-                    
+
                     document.getElementById('smtp-host').value = rawData.settings.smtp_host || "";
                     document.getElementById('smtp-port').value = rawData.settings.smtp_port || "465";
                     document.getElementById('smtp-secure').value = rawData.settings.smtp_secure || "true";
                     document.getElementById('smtp-user').value = rawData.settings.smtp_user || "";
                     document.getElementById('smtp-pass').value = rawData.settings.smtp_pass || "";
-                    
+
                     document.getElementById('site-title').value = rawData.settings.site_title || "";
                     document.getElementById('site-tagline').value = rawData.settings.site_tagline || "";
                     document.getElementById('admin-bot-token').value = rawData.settings.bot_token || "";
-                    
+                    document.getElementById('checkout-disclaimer').value = rawData.settings.checkout_disclaimer || "";
+
                     // Inject Site Icon Preview on Load
                     if(rawData.settings.site_icon) {
                         document.getElementById('preview-site-icon').src = rawData.settings.site_icon;
@@ -844,6 +901,11 @@
                     document.getElementById('agent-upi-id').value = rawData.user_settings.agent_upi_id || "";
                     // Store branding
                     document.getElementById('store-name-input').value = rawData.user_settings.store_name || '';
+                    document.getElementById('store-support-email').value = rawData.user_settings.support_email || '';
+                    document.getElementById('store-support-phone').value = rawData.user_settings.support_phone || '';
+                    document.getElementById('store-payment-gateway').value = rawData.user_settings.payment_gateway || 'ONLINE';
+                    document.getElementById('store-whatsapp-number').value = rawData.user_settings.whatsapp_number || '';
+                    toggleWhatsappField();
                     if (rawData.user_settings.store_has_logo) {
                         const ts = Date.now();
                         document.getElementById('store-logo-preview').src = `/api/image/store_logo_${rawData.user_settings.id}.jpg?t=${ts}`;
@@ -906,12 +968,24 @@
             document.getElementById('store-logo-preview-box').classList.add('hidden');
         }
 
+        function toggleWhatsappField() {
+            const gw = document.getElementById('store-payment-gateway').value;
+            const row = document.getElementById('whatsapp-number-row');
+            if (gw === 'OFFLINE') { row.classList.remove('hidden'); } else { row.classList.add('hidden'); }
+        }
+
         async function saveStoreInfo() {
             const name = document.getElementById('store-name-input').value.trim();
             if (!name) return showToast("⚠️ Store Name is required.");
             const logo = document.getElementById('store-logo-data').value;
             showToast("⏳ Saving...");
-            const payload = { store_name: name };
+            const payload = {
+                store_name: name,
+                support_email: document.getElementById('store-support-email').value.trim(),
+                support_phone: document.getElementById('store-support-phone').value.trim(),
+                payment_gateway: document.getElementById('store-payment-gateway').value,
+                whatsapp_number: document.getElementById('store-whatsapp-number').value.trim()
+            };
             if (logo) payload.logo = logo;
             const res = await fetch('/api/user/store', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
             if ((await res.json()).status === 'success') {
@@ -923,7 +997,84 @@
             }
         }
 
-        function editB2cPlan(id, name, cid, price, days, desc, allowFree, extraEmails, hasImage) {
+        function updatePlanDiscountBadge() {
+            const orig = parseFloat(document.getElementById('b2c-plan-original-price').value) || 0;
+            const sale = parseFloat(document.getElementById('b2c-plan-price').value) || 0;
+            const badge = document.getElementById('b2c-plan-discount-badge');
+            if (orig > 0 && sale > 0 && orig > sale) {
+                const pct = Math.round((orig - sale) / orig * 100);
+                badge.innerText = `${pct}% OFF`;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function updateLinkDiscountBadge() {
+            const orig = parseFloat(document.getElementById('payment-link-original-price').value) || 0;
+            const sale = parseFloat(document.getElementById('payment-link-amount').value) || 0;
+            const badge = document.getElementById('payment-link-discount-badge');
+            if (orig > 0 && sale > 0 && orig > sale) {
+                const pct = Math.round((orig - sale) / orig * 100);
+                badge.innerText = `${pct}% OFF`;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function addPlanTier() {
+            const container = document.getElementById('plan-tiers-container');
+            const idx = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-center bg-white border border-indigo-200 rounded-lg p-2';
+            div.dataset.tierIndex = idx;
+            div.innerHTML = `
+                <input type="text" placeholder="Label (e.g. 1 Month)" class="flex-1 p-2 text-xs border rounded bg-gray-50 tier-label" />
+                <input type="number" placeholder="Days" class="w-20 p-2 text-xs border rounded bg-gray-50 tier-days" min="0" />
+                <input type="number" placeholder="₹ Price" class="w-24 p-2 text-xs border rounded bg-gray-50 tier-price" min="0" />
+                <input type="number" placeholder="₹ MRP" class="w-24 p-2 text-xs border rounded bg-gray-50 tier-original-price" min="0" />
+                <button type="button" onclick="this.closest('[data-tier-index]').remove(); reindexTiers()" class="text-red-500 font-bold text-sm px-2 shrink-0">✕</button>`;
+            container.appendChild(div);
+        }
+
+        function reindexTiers() {
+            const container = document.getElementById('plan-tiers-container');
+            Array.from(container.children).forEach((div, i) => { div.dataset.tierIndex = i; });
+        }
+
+        function getTiersFromForm() {
+            const container = document.getElementById('plan-tiers-container');
+            const tiers = [];
+            for (const div of container.children) {
+                const label = div.querySelector('.tier-label').value.trim();
+                const days = parseInt(div.querySelector('.tier-days').value) || 0;
+                const price = parseFloat(div.querySelector('.tier-price').value) || 0;
+                const orig = parseFloat(div.querySelector('.tier-original-price').value) || 0;
+                if (label && price > 0) tiers.push({ label, days, price, original_price: orig });
+            }
+            return tiers;
+        }
+
+        function renderTiersInForm(tiers) {
+            const container = document.getElementById('plan-tiers-container');
+            container.innerHTML = '';
+            if (!tiers || !tiers.length) return;
+            tiers.forEach((t, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex gap-2 items-center bg-white border border-indigo-200 rounded-lg p-2';
+                div.dataset.tierIndex = idx;
+                div.innerHTML = `
+                    <input type="text" placeholder="Label (e.g. 1 Month)" class="flex-1 p-2 text-xs border rounded bg-gray-50 tier-label" value="${(t.label||'').replace(/"/g,'&quot;')}" />
+                    <input type="number" placeholder="Days" class="w-20 p-2 text-xs border rounded bg-gray-50 tier-days" min="0" value="${t.days||0}" />
+                    <input type="number" placeholder="₹ Price" class="w-24 p-2 text-xs border rounded bg-gray-50 tier-price" min="0" value="${t.price||0}" />
+                    <input type="number" placeholder="₹ MRP" class="w-24 p-2 text-xs border rounded bg-gray-50 tier-original-price" min="0" value="${t.original_price||0}" />
+                    <button type="button" onclick="this.closest('[data-tier-index]').remove(); reindexTiers()" class="text-red-500 font-bold text-sm px-2 shrink-0">✕</button>`;
+                container.appendChild(div);
+            });
+        }
+
+        function editB2cPlan(id, name, cid, price, days, desc, allowFree, extraEmails, hasImage, originalPrice, tiersJson) {
             document.getElementById('b2c-plan-editor-title').innerText = "Edit Plan";
             document.getElementById('b2c-plan-id').value = id;
             document.getElementById('b2c-plan-name').value = name;
@@ -936,11 +1087,14 @@
 
             document.getElementById('b2c-plan-price').value = price;
             document.getElementById('b2c-plan-days').value = days;
+            document.getElementById('b2c-plan-original-price').value = originalPrice || '';
+            updatePlanDiscountBadge();
             loadQuillContent(planDescEditor, desc);
             document.getElementById('b2c-plan-free-auth').value = allowFree || '0';
             document.getElementById('b2c-plan-extra-emails').value = extraEmails || '';
             document.getElementById('b2c-plan-img-data').value = '';
             document.getElementById('b2c-plan-img-file').value = '';
+            try { renderTiersInForm(tiersJson ? JSON.parse(tiersJson) : []); } catch(e) { renderTiersInForm([]); }
             if (hasImage) {
                 const ts = Date.now();
                 document.getElementById('b2c-plan-img-preview').src = `/api/image/plan_image_${id}.jpg?t=${ts}`;
@@ -1046,6 +1200,8 @@
             const allowFree = document.getElementById('b2c-plan-free-auth').value;
             const extraEmails = document.getElementById('b2c-plan-extra-emails').value;
             const imgData = document.getElementById('b2c-plan-img-data').value;
+            const originalPrice = document.getElementById('b2c-plan-original-price').value || 0;
+            const tiers = getTiersFromForm();
 
             if(!n || !c || !p || !d) return showToast("⚠️ Fill all required fields");
             if(!(rawData.user_settings && rawData.user_settings.store_name)) return showToast("⚠️ Set your Store Name in Store Setup first.");
@@ -1055,7 +1211,7 @@
             showToast("⏳ Saving...");
 
             try {
-                const payload = {plan_name: n, channel_id: c, price: p, duration_days: d, description: desc, allow_free_webhook: allowFree, extra_emails: extraEmails};
+                const payload = {plan_name: n, channel_id: c, price: p, duration_days: d, description: desc, allow_free_webhook: allowFree, extra_emails: extraEmails, original_price: originalPrice, tiers: JSON.stringify(tiers)};
                 if(id) payload.plan_id = id;
                 if(imgData) payload.image = imgData;
 
@@ -1063,6 +1219,9 @@
                 if((await res.json()).status === 'success') {
                     document.getElementById('b2c-plan-editor-title').innerText = "Add New Plan";
                     document.getElementById('b2c-plan-id').value = ''; document.getElementById('b2c-plan-name').value = ''; document.getElementById('b2c-plan-price').value = ''; document.getElementById('b2c-plan-days').value = '';
+                    document.getElementById('b2c-plan-original-price').value = '';
+                    document.getElementById('b2c-plan-discount-badge').classList.add('hidden');
+                    document.getElementById('plan-tiers-container').innerHTML = '';
                     clearQuillEditor(planDescEditor);
                     document.getElementById('b2c-plan-free-auth').value = '0';
                     document.getElementById('b2c-plan-extra-emails').value = '';
@@ -1100,13 +1259,15 @@
             }
         }
 
-        function editPaymentLink(id, title, type, amount, discount, redirect, desc, allowFree, extraEmails, hasImage) {
+        function editPaymentLink(id, title, type, amount, discount, redirect, desc, allowFree, extraEmails, hasImage, originalPrice) {
             document.getElementById('payment-link-editor-title').innerText = "Edit Link";
             document.getElementById('payment-link-id').value = id;
             document.getElementById('payment-link-title').value = title;
             loadQuillContent(linkDescEditor, desc);
             document.getElementById('payment-link-type').value = type;
             document.getElementById('payment-link-amount').value = amount;
+            document.getElementById('payment-link-original-price').value = originalPrice || '';
+            updateLinkDiscountBadge();
             document.getElementById('payment-link-discount').value = discount;
             document.getElementById('payment-link-redirect').value = redirect;
             document.getElementById('payment-link-free-auth').value = allowFree || '0';
@@ -1163,7 +1324,8 @@
             showToast("⏳ Saving...");
 
             try {
-                const payload = {title: t, description: desc, type: type, amount: a, discount_code: d, redirect_url: r, allow_free_webhook: allowFree, extra_emails: extraEmails};
+                const originalPrice = document.getElementById('payment-link-original-price').value || 0;
+                const payload = {title: t, description: desc, type: type, amount: a, discount_code: d, redirect_url: r, allow_free_webhook: allowFree, extra_emails: extraEmails, original_price: originalPrice};
                 if(id) payload.link_id = id;
                 if(imgData) payload.image = imgData;
 
@@ -1175,6 +1337,8 @@
                     clearQuillEditor(linkDescEditor);
                     document.getElementById('payment-link-type').value = 'FIXED';
                     document.getElementById('payment-link-amount').value = '';
+                    document.getElementById('payment-link-original-price').value = '';
+                    document.getElementById('payment-link-discount-badge').classList.add('hidden');
                     document.getElementById('payment-link-discount').value = '';
                     document.getElementById('payment-link-redirect').value = '';
                     document.getElementById('payment-link-free-auth').value = '0';
@@ -1205,6 +1369,24 @@
             const res = await fetch(`/api/b2c/txns/force_success/${txnId}`, { method: 'POST' });
             const data = await res.json();
             if(data.status === 'success') { showToast("✅ Approved successfully!"); fetchData(); }
+            else { showToast(`❌ ${data.message}`); }
+        }
+
+        async function approveOfflineOrder(txnId) {
+            if(!confirm("✅ Approve this offline order?\nThis will grant access and send the Telegram invite link via email.")) return;
+            showToast("⏳ Approving...");
+            const res = await fetch(`/api/b2c/orders/approve/${txnId}`, { method: 'POST' });
+            const data = await res.json();
+            if(data.status === 'success') { showToast("✅ Order approved! Invite sent."); fetchData(); }
+            else { showToast(`❌ ${data.message}`); }
+        }
+
+        async function rejectOfflineOrder(txnId) {
+            if(!confirm("✕ Reject this offline order?")) return;
+            showToast("⏳ Rejecting...");
+            const res = await fetch(`/api/b2c/orders/reject/${txnId}`, { method: 'POST' });
+            const data = await res.json();
+            if(data.status === 'success') { showToast("✅ Order rejected."); fetchData(); }
             else { showToast(`❌ ${data.message}`); }
         }
 
@@ -1284,7 +1466,20 @@
                 const durStr = p.duration_days == 0 ? 'Lifetime' : `${p.duration_days} Days`;
                 const safeDesc = p.description ? p.description.replace(/'/g, "\\'").replace(/\n/g, "\\n") : '';
                 const safeExtraEmails = p.extra_emails ? p.extra_emails.replace(/'/g, "\\'") : '';
+                const safeTiers = p.tiers ? p.tiers.replace(/\\/g, '\\\\').replace(/'/g, "\\'") : '';
                 const thumbHtml = p.has_image ? `<img src="/api/image/plan_image_${p.id}.jpg?t=${Date.now()}" class="w-12 h-12 rounded-lg object-cover border border-gray-200 shrink-0" alt="">` : `<div class="w-12 h-12 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-lg shrink-0">📦</div>`;
+                let discBadge = '';
+                if (p.original_price > 0 && p.price > 0 && p.original_price > p.price) {
+                    const pct = Math.round((p.original_price - p.price) / p.original_price * 100);
+                    discBadge = `<span class="bg-red-100 text-red-600 text-[10px] font-black px-1.5 py-0.5 rounded ml-1">${pct}% OFF</span>`;
+                }
+                const hasCoupons = rawData.coupons && rawData.coupons.length > 0;
+                let couponLinks = '';
+                if (hasCoupons) {
+                    rawData.coupons.slice(0, 3).forEach(c => {
+                        couponLinks += `<button onclick="copyToClipboard('${link}?coupon=${c.code}')" class="bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded text-[10px] font-bold active:scale-95 transition">🏷️ +${c.code}</button>`;
+                    });
+                }
                 pCon.innerHTML += `
                 <div class="bg-white border border-gray-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm mb-3">
                     <div class="flex justify-between items-start gap-3">
@@ -1292,17 +1487,24 @@
                             ${thumbHtml}
                             <div class="min-w-0">
                                 <div class="text-sm font-bold text-teal-900 truncate">${p.plan_name}</div>
-                                <div class="text-xs text-gray-500 font-medium mt-0.5"><span class="bg-teal-50 text-teal-700 px-2 py-0.5 rounded">₹${p.price} · ${durStr}</span></div>
+                                <div class="text-xs text-gray-500 font-medium mt-0.5 flex items-center flex-wrap gap-1">
+                                    ${p.original_price > 0 ? `<span class="line-through text-gray-400">₹${p.original_price}</span>` : ''}
+                                    <span class="bg-teal-50 text-teal-700 px-2 py-0.5 rounded">₹${p.price} · ${durStr}</span>${discBadge}
+                                </div>
                             </div>
                         </div>
                         <div class="flex gap-2 shrink-0">
-                            <button onclick="editB2cPlan('${p.id}', '${p.plan_name}', '${p.channel_id}', '${p.price}', '${p.duration_days}', '${safeDesc}', '${p.allow_free_webhook}', '${safeExtraEmails}', ${p.has_image ? 1 : 0})" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
+                            <button onclick="editB2cPlan('${p.id}', '${p.plan_name}', '${p.channel_id}', '${p.price}', '${p.duration_days}', '${safeDesc}', '${p.allow_free_webhook}', '${safeExtraEmails}', ${p.has_image ? 1 : 0}, '${p.original_price || 0}', '${safeTiers}')" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
                             <button onclick="deleteB2cPlan('${p.id}')" class="text-xs bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded transition hover:bg-red-100">Del</button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
-                        <code class="text-xs truncate flex-1 text-gray-500 font-bold">${link}</code>
-                        <button onclick="copyToClipboard('${link}')" class="bg-white border border-gray-300 text-gray-700 px-4 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition-transform">Copy Link</button>
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
+                            <code class="text-xs truncate flex-1 text-gray-500 font-bold">${link}</code>
+                            <button onclick="copyToClipboard('${link}')" class="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition-transform">Copy</button>
+                            <button onclick="copyToClipboard('${link}?direct=1')" class="bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded text-xs font-bold active:scale-95 transition-transform" title="Direct to form (skip step 1)">⚡ Direct</button>
+                        </div>
+                        ${couponLinks ? `<div class="flex flex-wrap gap-1.5 px-1">${couponLinks}</div>` : ''}
                     </div>
                 </div>`;
             });
@@ -1316,6 +1518,18 @@
                 const safeDesc = pl.description ? pl.description.replace(/'/g, "\\'").replace(/\n/g, "\\n") : '';
                 const safeExtraEmailsLink = pl.extra_emails ? pl.extra_emails.replace(/'/g, "\\'") : '';
                 const thumbHtml = pl.has_image ? `<img src="/api/image/link_image_${pl.id}.jpg?t=${Date.now()}" class="w-12 h-12 rounded-lg object-cover border border-gray-200 shrink-0" alt="">` : `<div class="w-12 h-12 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-lg shrink-0">🔗</div>`;
+                let discBadgePl = '';
+                if (pl.original_price > 0 && pl.amount > 0 && pl.original_price > pl.amount) {
+                    const pct = Math.round((pl.original_price - pl.amount) / pl.original_price * 100);
+                    discBadgePl = `<span class="bg-red-100 text-red-600 text-[10px] font-black px-1.5 py-0.5 rounded ml-1">${pct}% OFF</span>`;
+                }
+                const hasCoupons = rawData.coupons && rawData.coupons.length > 0;
+                let couponLinksPl = '';
+                if (hasCoupons) {
+                    rawData.coupons.slice(0, 3).forEach(c => {
+                        couponLinksPl += `<button onclick="copyToClipboard('${link}?coupon=${c.code}')" class="bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded text-[10px] font-bold active:scale-95 transition">🏷️ +${c.code}</button>`;
+                    });
+                }
                 plCon.innerHTML += `
                 <div class="bg-white border border-gray-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm mb-3">
                     <div class="flex justify-between items-start gap-3">
@@ -1323,17 +1537,24 @@
                             ${thumbHtml}
                             <div class="min-w-0">
                                 <div class="text-sm font-bold text-blue-900 truncate">${pl.title}</div>
-                                <div class="text-xs text-gray-500 font-medium mt-0.5"><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${amtStr}</span></div>
+                                <div class="text-xs text-gray-500 font-medium mt-0.5 flex items-center flex-wrap gap-1">
+                                    ${pl.original_price > 0 ? `<span class="line-through text-gray-400">₹${pl.original_price}</span>` : ''}
+                                    <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${amtStr}</span>${discBadgePl}
+                                </div>
                             </div>
                         </div>
                         <div class="flex gap-2 shrink-0">
-                            <button onclick="editPaymentLink('${pl.id}', '${pl.title}', '${pl.type}', '${pl.amount}', '${pl.discount_code}', '${pl.redirect_url}', '${safeDesc}', '${pl.allow_free_webhook}', '${safeExtraEmailsLink}', ${pl.has_image ? 1 : 0})" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
+                            <button onclick="editPaymentLink('${pl.id}', '${pl.title}', '${pl.type}', '${pl.amount}', '${pl.discount_code}', '${pl.redirect_url}', '${safeDesc}', '${pl.allow_free_webhook}', '${safeExtraEmailsLink}', ${pl.has_image ? 1 : 0}, '${pl.original_price || 0}')" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded transition hover:bg-blue-100">Edit</button>
                             <button onclick="deletePaymentLink('${pl.id}')" class="text-xs bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded transition hover:bg-red-100">Del</button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
-                        <code class="text-xs truncate flex-1 text-gray-500 font-bold">${link}</code>
-                        <button onclick="copyToClipboard('${link}')" class="bg-white border border-gray-300 text-gray-700 px-4 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition-transform">Copy Link</button>
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
+                            <code class="text-xs truncate flex-1 text-gray-500 font-bold">${link}</code>
+                            <button onclick="copyToClipboard('${link}')" class="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition-transform">Copy</button>
+                            <button onclick="copyToClipboard('${link}?direct=1')" class="bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded text-xs font-bold active:scale-95 transition-transform" title="Direct to form (skip step 1)">⚡ Direct</button>
+                        </div>
+                        ${couponLinksPl ? `<div class="flex flex-wrap gap-1.5 px-1">${couponLinksPl}</div>` : ''}
                     </div>
                 </div>`;
             });
@@ -1382,8 +1603,16 @@
             
             tCon.innerHTML = '';
             pTxns.forEach(t => {
-                let badge = t.status === 'SUCCESS' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200';
-                let manualBtn = t.status === 'PENDING' ? `<button onclick="forceTxnSuccess('${t.txn_id}')" class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition border border-green-200 ml-2">Approve ✅</button>` : '';
+                let badge, manualBtn = '';
+                if (t.status === 'SUCCESS') badge = 'bg-green-100 text-green-700 border-green-200';
+                else if (t.status === 'PENDING_MANUAL') badge = 'bg-orange-100 text-orange-700 border-orange-200';
+                else if (t.status === 'REJECTED') badge = 'bg-red-100 text-red-600 border-red-200';
+                else badge = 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                if (t.status === 'PENDING') {
+                    manualBtn = `<button onclick="forceTxnSuccess('${t.txn_id}')" class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1.5 rounded text-xs font-bold shadow-sm active:scale-95 transition border border-green-200 ml-2">Approve ✅</button>`;
+                } else if (t.status === 'PENDING_MANUAL') {
+                    manualBtn = `<button onclick="approveOfflineOrder('${t.txn_id}')" class="bg-green-100 text-green-700 hover:bg-green-200 px-2 py-1.5 rounded text-xs font-bold border border-green-200 ml-2">✅ Approve</button><button onclick="rejectOfflineOrder('${t.txn_id}')" class="bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1.5 rounded text-xs font-bold border border-red-200 ml-1">✕ Reject</button>`;
+                }
                 tCon.innerHTML += `
                 <div class="bg-white border border-gray-200 p-4 rounded-xl mb-3 shadow-sm hover:border-gray-300 transition">
                     <div class="flex justify-between font-bold text-gray-800 mb-2">
@@ -1393,7 +1622,7 @@
                     <div class="text-xs text-gray-500 mb-3 font-semibold">Phone: ${t.customer_mobile || 'N/A'} <span class="text-gray-300 mx-2">|</span> Date: ${t.created_at || 'N/A'}</div>
                     <div class="flex justify-between items-center text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                         <span class="font-bold text-sm">₹${t.final_amount} <span class="text-xs text-gray-400 font-medium ml-2">${t.coupon_code ? '(Code: '+t.coupon_code+')' : ''}</span></span>
-                        <div class="flex items-center">
+                        <div class="flex items-center flex-wrap gap-1">
                             <span class="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">UTR: ${t.utr || 'Pending'}</span>
                             ${manualBtn}
                         </div>
@@ -1681,24 +1910,25 @@
             const t = document.getElementById('site-title').value;
             const sub = document.getElementById('site-tagline').value;
             const file = document.getElementById('site-icon-file').files[0];
-            
-            let payload = {site_title: t, site_tagline: sub};
-            
+            const disclaimer = document.getElementById('checkout-disclaimer').value;
+
+            let payload = {site_title: t, site_tagline: sub, checkout_disclaimer: disclaimer};
+
             if (pendingSiteIconDelete) {
-                payload.site_icon = ""; // Pushes an empty string to DB, removing the icon globally
+                payload.site_icon = "";
             } else if (file) {
                 if (!file.type.match(/^image\/(jpeg|jpg|png)$/)) return showToast("⚠️ PNG or JPG only for Site Icon");
                 if (file.size > 2*1024*1024) return showToast("⚠️ Icon must be less than 2MB");
                 payload.site_icon = await getBase64(file);
             }
-            
+
             showToast("⏳ Saving Branding...");
             const res = await fetch('/api/update_system_config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            if((await res.json()).status === 'success') { 
-                showToast("✅ Branding Saved!"); 
+            if((await res.json()).status === 'success') {
+                showToast("✅ Branding Saved!");
                 document.getElementById('site-icon-file').value = '';
                 pendingSiteIconDelete = false;
-                fetchData(); 
+                fetchData();
             }
         }
 
