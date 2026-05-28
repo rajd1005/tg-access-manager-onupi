@@ -245,7 +245,7 @@ def verify_channel_access(cursor, channel_id, user):
 
 # --- IMAGE ROUTE ---
 @app.get("/api/image/{img_name}")
-async def get_image(img_name: str, user: dict = Depends(get_current_user)):
+async def get_image(img_name: str):
     # Validate img_name to prevent path traversal security risks
     if not re.match(r'^[a-zA-Z0-9_]+\.jpg$', img_name):
         raise HTTPException(status_code=400, detail="Invalid image name")
